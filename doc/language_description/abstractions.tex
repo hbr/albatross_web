@@ -1,0 +1,329 @@
+\section{Using and Proving Abstractions}
+
+In this chapter we show how to use deferred classes to create
+abstractions. Abstractions are very useful because they allow us to define
+functions based on some deferred functions and to prove assertions based on
+some deferred assertions.
+
+The inheritance mechanism of Albatross is a powerful reuse mechanism. All
+classes which inherit from an abstraction get all functions defined in the
+abstraction and all assertions proved in the abstraction for free.
+
+We demonstrate the concepts by creating an abstraction for partial orders and
+linear orders. The base library already has these abstractions. In this
+chapter we create some simplified versions of the abstractions in the base
+library. After having read this chapter it might be interesting to read the
+versions in the base library.
+
+
+
+\subsection{Partial Order}
+
+In mathematics a partial order is a set with a binary relation which is
+reflexive, antisymmetric and transitive.
+
+It is easy to model such an abstraction in Albatross.
+
+\begin{lstlisting}
+    -- file: partial_order.al
+    use alba.base.predicate end
+
+    deferred class PARTIAL_ORDER end
+
+    PO: PARTIAL_ORDER
+
+    (=)  (a,b: PO): BOOLEAN  deferred end
+    (<=) (a,b: PO): BOOLEAN  deferred end
+    (<)  (a,b: PO): BOOLEAN  -> a <= b and a /= b
+    (>=) (a,b: PO): BOOLEAN  -> b <= a
+    (>)  (a,b: PO): BOOLEAN  -> b < a
+
+    all(a,b,c:PO)
+        deferred ensure
+            a = a
+            a <= a                             -- reflexivity
+            a <= b  ==>  b <= a  ==>  a = b    -- antisymmetry
+            a <= b  ==>  b <= c  ==>  a <= c   -- transitivity
+        end
+
+    deferred class PARTIAL_ORDER inherit ANY end
+\end{lstlisting}
+
+The transitivity of the \lstinline!>=! operator is trivial to prove
+\begin{lstlisting}
+    all(a,b,c:PO)
+        require
+            a >= b
+            b >= c
+        ensure
+            a >= c
+        end
+\end{lstlisting}
+
+Let's understand why this proof succeeds. After shifting the assumptions into
+the context the proof engine forward closes the context. Forward closing
+includes expansion of functions. Therefore after shifting the assumptions the
+context consists of
+\begin{lstlisting}
+    a >= b;  b >= c             -- assumptions
+
+    b <= a                      -- function expansion
+
+    c <= b                      -- function expansion
+
+    all(x) b <= x  ==> c <= x   -- partial specialization of transitivity
+
+    ...
+\end{lstlisting}
+
+Now the proof engine tries to prove the goal. It cannot prove it
+immediately. Therefore it searches for and generates backward
+rules. Generation of backward rule includes function expansion. The expanded
+goal is \lstinline!c <= a!. The expanded goal matches the conclusion of the
+partial specialization and therefore backward reasoning can continue. The
+substituted premise is already in the context and therefore the proof
+succeeds.
+
+This little proof is a nice demonstration how forward and backward reasoning
+work hand in hand and that the proof engine can do many detailed steps which
+would be very tedious to do them by hand.
+
+
+The \lstinline!<! operator shall be transitive as well. However the proof
+engine fails to prove the transitivity without help.
+%
+\begin{lstlisting}
+    all(a,b,c:PO)
+        require
+            a < b;  b < c
+        ensure
+            a < c        -- PROOF FAILS!
+        end
+\end{lstlisting}
+
+Let's see the result of forward reasoning after shifting the assumptions
+\begin{lstlisting}
+    a <= b
+    a /= b
+    a = b ==> false
+    b <= c
+    b /= c
+    b = c ==> false
+    ...
+\end{lstlisting}
+Backward reasoning generates the following subgoals
+\begin{lstlisting}
+    require  a = c
+    proof    ...
+    ensure   false end
+
+    a = c ==> false
+    a /= c
+    a <= c  -- proved by transitivity of '<='
+    a < c
+\end{lstlisting}
+
+I.e. the proof can succeed if the assumption of \lstinline!a = c! leads to
+falsity. In order to prove falsity the proof engine generates the subgoals
+\begin{lstlisting}
+    ...
+    b <= c
+    c <= b
+    b = c
+    false
+\end{lstlisting}
+Now it might be clear what the missing link is. The proof engine cannot prove
+\lstinline!c <= b!. However we have \lstinline!a <= b! and \lstinline!a = c!
+in the context. If we trigger a term rewrite of the first by the second one we
+get \lstinline!c <= b! into the context and the proof succeeds. Term rewriting
+can be triggered by applying the Leibniz rule (see chapter on the module
+\lstinline!predicate!).
+
+The following proves successfully the transitivity of \lstinline!<!.
+
+\begin{lstlisting}
+    all(a,b,c:PO)
+        require
+            a < b
+            b < c
+        proof
+            require
+                a = c
+            proof
+                c in {x: x <= b}
+            ensure
+                false
+            end
+        ensure
+            a < c
+        end
+\end{lstlisting}
+Note that the proof engine needs just a little hint on how to conclude falsity
+from the assumption \lstinline!a = c!. It is sufficient to provide this
+hint. The detailed steps which are a lot are filled in by the proof engine.
+
+In the base library we have already an example of a class which satisfies the
+requirements of a partial order. The subset relation defined in the module
+`predicate` is certainly reflexive, antisymmetric and transitive.
+
+We can prove this conjecture by
+\begin{lstlisting}
+    G: ANY
+
+    all(p,q,r:G?)
+        ensure
+            p <= p
+
+            p <= q  ==>  q <= p  ==>  p = q
+
+            p <= q  ==>  q <= r  ==>  p <= q
+        end
+\end{lstlisting}
+By using function expansion and applying the basic techniques already seen in
+this tutorial it is evident that the proof engine proves these claims
+successfully.
+
+Having reflexivity, antisymmetry and transitivity of the subset relation we
+can state that the class \lstinline!PREDICATE! is entitled to inherit the
+class \lstinline!PARTIAL_ORDER!.
+
+\begin{lstlisting}
+    immutable class
+        predicate.PREDICATE[G]
+    inherit
+        ghost PARTIAL_ORDER
+    end
+\end{lstlisting}
+
+Now the class \lstinline!PREDICATE! inherits all functions defined in this
+module (\lstinline!<,>=,<!) and all assertions proved in this module.
+
+But in order to see that the abstraction is really useful we need more {\em
+  clients} which use it. In the next chapter we will see another class which
+can inherit from a partial order.
+
+But before using the module we have to create an interface file for it. We
+don't show the interface file here because looking at the interface files
+already shown here it should be clear what it has to contain.
+
+
+\subsection{Linear Order}
+
+A linear order is the special case of a partial order where all elements are
+comparable.
+
+\begin{lstlisting}
+    -- file: linear_order.al
+    deferred class LINEAR_ORDER end
+
+    LO: LINEAR_ORDER
+
+    (=)  (a,b:LO): BOOLEAN  deferred end
+    (<=) (a,b:LO): BOOLEAN  deferred end
+
+    all(a,b,c:LO)
+        deferred ensure
+            a = a
+
+            a <= b  or  b <= a
+
+            a <= b  ==>  b <= a  ==>  a = b
+
+            a <= b  ==>  b <= c  ==>  a <= c
+        end
+
+    deferred class LINEAR_ORDER inherit ANY end
+\end{lstlisting}
+
+Note that we have not included reflexivity because reflexivity is a
+consequence of these deferred assertions.
+
+\begin{lstlisting}
+    all(a:LO)
+        proof
+            a <= a  or  a <= a
+        ensure
+            a <= a
+        end
+\end{lstlisting}
+
+Now we have enough evidence to state that a linear order is a special case of
+a partial order which is stated as an inheritance relation in Albatross
+
+\begin{lstlisting}
+    deferred class
+        LINEAR_ORDER
+    inherit
+        PARTIAL_ORDER
+    end
+\end{lstlisting}
+
+In a partial order pairs of elements can be unrelated. In a linear order this
+cannot happen. This is the content of the second deferred assertion.
+
+Therefore if we know that \lstinline!not (a <= b)! holds we must be able to
+conclude \lstinline!b < a!. In order to prove this conclusion we have to prove
+\lstinline!b <= a! and \lstinline!b /= a!. The first one is a consequence of
+the fact that pairs are always related by \lstinline!<=! and if one relation
+does not hold then the other must hold. The second one can be proved by
+leading the assumption \lstinline!b = a! to a contradiction.
+
+\begin{lstlisting}
+    all(a,b:LO)
+        require
+            not (a <= b)
+        proof
+            a <= b  or  b <= a
+
+            require  b = a
+            proof    a in {x: x <= b}
+            ensure   false end
+        ensure
+            b < a
+        end
+\end{lstlisting}
+%
+Note that we used the Leibniz rule to rewrite the assertion \lstinline!b <= b!
+to \lstinline!a <= b! which contradicts the assumption.
+
+We want to prove as well that \lstinline!not (a < b)!  leads to
+\lstinline!b <= a!. We use an indirect proof i.e. we assume that the
+conclusion does not hold. From the last assertion we know that this leads to
+\lstinline!a < b!  which contradicts the assumption.
+
+\begin{lstlisting}
+    all(a,b:LO)
+        require
+            not (a < b)
+        proof
+            require  not (b <= a)
+            proof    a < b
+            ensure   false end
+        ensure
+            b <= a
+        end
+\end{lstlisting}
+
+In linear order two different elements have to be related in the strict order
+relation \lstinline!<!.
+
+\begin{lstlisting}
+    all(a,b:LO)
+        require
+            a /= b
+        proof
+            require
+                not (a < b)   -- implies b <= a
+            ensure
+                b < a
+            end
+        ensure
+            a < b  or  b < a
+        end
+\end{lstlisting}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% case-fold-search: nil
+%%% TeX-master: "albatross"
+%%% End: 

@@ -1,0 +1,266 @@
+\section{Important Modules of the Base Library}
+
+\subsection{The Module 'any'}
+
+The class \lstinline!ANY! declared in the module \lstinline!any! is the base
+class for nearly all classes (therefore the name), because it introduces
+equality.
+
+The module \lstinline!any! uses some important concepts of Albatross
+like deferred classes, type variables, inheritance, deferred functions and
+assertions.
+
+The interface file of the module \lstinline!any! contains just a handful of
+declarations:
+
+\begin{lstlisting}
+    -- file: any.ali
+
+    use boolean end
+
+    deferred class ANY end
+
+    G: ANY
+
+
+    (=) (a,b:G): BOOLEAN    deferred end
+
+    (/=) (a,b:G): BOOLEAN -> not (a = b)
+
+    all(a:G) deferred ensure a = a end
+
+    all(a:G) ensure a /= a ==> false end
+
+    immutable class boolean.BOOLEAN
+    inherit         ANY end
+\end{lstlisting}
+
+The class \lstinline!ANY! is a deferred class i.e. no objects of type
+\lstinline!ANY! can be created. A deferred class is meant to be inherited by
+other classes which implement the deferred features and assertions.
+
+Only deferred classes can have deferred functions and assertions.
+
+The second declaration is the declaration of the type variable
+\lstinline!G!. The scope of a type variable is the module. A type variable has
+a concept. The concept of the type variable \lstinline!G! is
+\lstinline!ANY!. I.e. in any places where the type variable \lstinline!G!
+occurs it can be replaced by any type which satisfies \lstinline!ANY!
+i.e. which inherits from \lstinline!ANY!.
+
+The module declares the two functions \lstinline!=! and \lstinline!/=!. The
+function \lstinline!=! is a deferred function which has to be present in all
+descendants of the class \lstinline!ANY! either declared in the descendant
+with a definition or redeclared as deferred. The function \lstinline!/=! has a
+definition.
+
+Furthermore the module declares a deferred assertion which states reflexivity
+of equality. Like deferred functions all deferred assertions have to be
+available in any descendant.
+
+The second assertion is effective (i.e. not deferred) which states that the
+implementation file has a proof for this statement. This assertion is
+available to all descendants of \lstinline!ANY! for free.
+
+The last statement is an inheritance statement. It states that the class
+\lstinline!BOOLEAN! of the module \lstinline!boolean! can inherit
+\lstinline!ANY! i.e. it has been successfully verified that the class
+\lstinline!BOOLEAN! has a reflexive equality function and therefore is
+entitled to inherit from \lstinline!ANY! the effective function \lstinline!/=!
+and the effective assertion stating that irreflexivity implies falsehood.
+
+
+
+\subsection{The Module 'predicate'}
+
+The concept of a predicate is very important in Albatross. A predicate is a
+total boolean valued function over a certain type. All objects which satisfy a
+predicate form a set. Therefore a predicate represents a set.
+
+Let us look into the interface file of the module \lstinline!predicate! to
+explain some concepts.
+
+\begin{lstlisting}
+    -- file: predicate.ali
+
+    use any end
+
+    G: ANY
+
+    immutable class PREDICATE[G] end
+
+    (in)  (a:G, p:G?): BOOLEAN
+    (/in) (a:G, p:G?): BOOLEAN -> not p(a)
+
+    (<=) (p,q:G?): ghost BOOLEAN -> all(x) p(x) ==> q(x)
+    (=)  (p,q:G?): ghost BOOLEAN -> p <= q and q <= p
+
+
+    all(p:G?) ensure p = p end
+
+    immutable class PREDICATE[G]
+    inherit         ghost ANY end
+\end{lstlisting}
+
+The module \lstinline!predicate! uses the module \lstinline!any! and since the
+module \lstinline!any! uses the module \lstinline!boolean! the module
+\lstinline!predicate! uses the module \lstinline!boolean! implicitly.
+
+For any type \lstinline!G! inheriting \lstinline!ANY! we can form the type
+\lstinline!PREDICATE[G]!. Predicates are used frequently in
+Albatross. Therefore the shorthand \lstinline!G?! has been introduced to be
+equivalent to \lstinline!PREDICATE[G]!.
+
+The expression \lstinline!p(x)! states that \lstinline!x! satisfies the
+predicate \lstinline!p!. The statement \lstinline!x in p! is equivalent.
+
+The function \lstinline!<=! defines the subset relation. A predicate/set
+\lstinline!p! is a subset of \lstinline!q! if all elements of \lstinline!p!
+occur in \lstinline!q! as well.
+
+The function \lstinline!<=! has to be declared as a ghost function because it
+uses a universally quantified expression in its definition.
+
+Two sets are equal if they are mutually subsets. The equality function has to
+be declared as ghost function as well because it uses another ghost function
+in its definition.
+
+The reflexivity of equality has been proved in the implementation file,
+therefore the class \lstinline!PREDICATE! is entitled to inherit from the
+class \lstinline!ANY!.
+
+The inheritance relation has to be declared as ghost inheritance because the
+equality function is present in the class \lstinline!PREDICATE! only as a
+ghost function. As a consequence all functions inherited from the class
+\lstinline!ANY! are inherited as ghost functions as well.
+
+\begin{lstlisting}
+    -- more declarations of the file 'predicate.ali'
+    0: G? = {x: false}    -- empty set
+    1: G? = {x: true}     -- universal set
+
+    singleton (a:G): G? -> {x: x = a}  -- singleton set with one element
+         -- {a} is a shorthand for a.singleton
+
+    -- set union, intersection and difference
+    (+)  (p,q:G?): G?  -> {x: p(x) or q(x)}
+    (*)  (p,q:G?): G?  -> {x: p(x) and q(x)}
+    (-)  (p,q:G?): G?  -> {x: p(x) and not q(x)}
+
+    -- set complement
+    (-)  (p:G?): G?    -> {x: not p(x)}
+
+    -- union and intersection of a collection of sets
+    (+)  (pp:G??): ghost G?  -> {x: some(p) pp(p) and p(x)}
+    (*)  (pp:G??): ghost G?  -> {x: all(p)  pp(p) ==> p(x)}
+\end{lstlisting}
+
+The empty and the universal set over a type are declared as
+constants. Constants are defined by the equality operator and not by the arrow
+operator.
+
+Albatross requires type annotations only at the top level and if the type
+cannot be inferred from the context. The type of the bound variable
+\lstinline!x! in \lstinline!{x: true}! can be inferred from the context
+because the declared constant has type \lstinline!G?! therefore the variable
+\lstinline!x! has to have the type \lstinline!G!.
+
+An expression of the form \lstinline!{x: exp}! is a predicate expression and
+the variable \lstinline!x! can occur in the expression \lstinline!exp!. This
+predicate describes the set of all objects \lstinline!x! which satisfy the
+expression \lstinline!exp!. The Albatross proof engine does beta reductions of
+the form
+\begin{lstlisting}
+    a in {x: exp_x}    -- or equivalent {x: exp_x}(a)
+
+    -- beta reduces to
+    exp_a   -- all variables 'x' in 'exp_x' replaced by 'a'
+\end{lstlisting}
+in forward and in backward direction.
+
+The function \lstinline!singleton! is the first non-operator function used in
+this tutorial. It has one argument. The most natural way to call this function
+is like \lstinline!singleton(a)!. This form is called the functional
+notation. However Albatross has an equivalent object oriented notation with a
+dot notation extracting the first argument and put it as the target object
+before the dot. Therefore the expression \lstinline!a.singleton! is an
+equivalent function call.
+
+In order to support a more mathematical notation the abbreviation
+\lstinline!{a}! has been introduced. The language parser converts every
+expression of the form \lstinline!{a,b,...}! to
+\lstinline!a.singleton + b.singleton + ...!.
+
+The following functions demonstrate that function names or operators does not
+need to be unique in Albatross. Only the function name (operator name)
+together with the signature has to be unique. Therefore \lstinline!-! can be
+used as a binary operator for set difference and as a unary operator for set
+complement.
+
+The last block in the interface file of the module `predicate` lists all
+assertions which have been proved in the implementation file and are exported
+for public use. We list here just a few of them.
+
+\begin{lstlisting}
+    -- some assertions in the file 'predicate.ali'
+    all(a,b,c:G, p,q,r:G?)
+        ensure
+            a = b  ==>  p(a) ==> p(b)  -- Leibniz rule
+
+            a = b  ==> b = a
+
+            a = b  ==> b = c  ==> a = c
+
+            {a} /= 0
+
+            p + q  =  q + p
+            p + q + r  = p + (q * r)
+            
+            (some(x) p(x)) ==> p /= 0
+            p /= 0 ==> some(x) p(x)
+
+            p /= 0 ==> p + q /= 0
+            ...
+        end
+\end{lstlisting}
+
+Most of these assertions should be fairly evident. I'd like to draw your
+attention to the first one called {\em Leibniz rule}. The Leibniz rule
+expresses a concept which is very important in Albatross. If two objects are
+equal there is no possibility to distinguish them. The Albatross compiler
+enforces this rule by not allowing any definition of equality which is not
+strong enough to satisfy the Leibniz rule.
+
+The Leibniz rule allows you to do rewritings. As soon as there is an equality
+of the form \lstinline!a = b! with specific \lstinline!a! and \lstinline!b! in
+the context the proof engine does a partial specialization of the Leibniz rule
+and adds
+%
+\begin{lstlisting}
+    all(p) p(a) ==> p(b)
+\end{lstlisting}
+%
+to the context. How can you trigger rewritings using this rule? If you can
+prove the assertions \lstinline!exp_a! in which \lstinline!a! occurs as a
+subexpression you can replace this subexpression by a fresh variable
+\lstinline!x! to get the expression \lstinline!exp_x!. Now you can form the
+predicate \lstinline!{x: exp_x}! and the subexpression \lstinline!a!
+certainly satisfies this predicate, because you can prove
+\lstinline!exp_a!. Now it is sufficient to state
+%
+\begin{lstlisting}
+    b in {x: exp_x}
+\end{lstlisting}
+%
+in a proof because the compiler recognizes \lstinline!all(p) p(a) ==> p(b)! as
+a valid backward rule and tries to prove \lstinline!a in {x: exp_x}! which
+succeeds. After the proof the proof engine forward closes the assertion
+\lstinline!b in {x: exp_x}! by beta reduction and adds \lstinline!exp_b! to
+the context which is \lstinline!exp_a! where the subexpression \lstinline!a!
+has been substituted by the subexpression \lstinline!b!
+
+%%% Local Variables: 
+%%% mode: latex
+%%% case-fold-search: nil
+%%% TeX-master: "albatross"
+%%% End: 

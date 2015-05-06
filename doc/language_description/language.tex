@@ -1,0 +1,851 @@
+\chapter{Language Reference}
+
+\section{Structure of Albatross Programs}
+
+Modules are compilation units. Each module has an implementation file with the
+extension \lstinline!.al! and an interface file with the extension
+\lstinline!.ali!. The user of a module has access only to the elements
+declared in the interface file.
+
+A collection of modules in the same directory form an Albatross package or an
+Albatross library. The compiler works on Albatross packages. Within a
+directory of Albatross source files the compiler offers you the following
+basic commands:
+
+\begin{lstlisting}
+    alba init          -- initializes the directory
+    alba status        -- displays modules which need recompilation
+    alba compile       -- compiles all modules which require recompilation
+    alba help          -- get help about commands, options and arguments
+\end{lstlisting}
+  
+I.e. the albatross compiler automatically keeps track of dependencies between
+modules.
+
+Each module has to start with a declaration which states the used modules.
+
+\begin{lstlisting}
+    -- some source file
+    use
+        module_1
+        module_2
+        ...
+    end
+    
+    ...
+\end{lstlisting}
+
+The order of the used modules is irrelevant. The modules used by \lstinline!module_1!
+and \lstinline!module_2! are used implicitly.
+
+The name of a module is the filename of the module's source file without its
+extension. I.e. the module name of the module having the source files
+\lstinline!boolean.al! and \lstinline!boolean.ali! is \lstinline!boolean!.
+
+Modules of the same package are used by name. Modules of other packages are
+used by its fully qualified name. E.g. a module with the usage declaration
+\begin{lstlisting}
+    use
+        alba.base.boolean
+        alba.base.predicate
+        graphic
+    end
+\end{lstlisting}
+uses the modules \lstinline!boolean! and \lstinline!predicate! of the package
+\lstinline!alba.base! and the module \lstinline!graphic! of the same package.
+
+The package name is the name of the directory where it resides. The package
+\lstinline!alba.base! has to reside in a directory named \lstinline!alba.base!.
+
+The Albatross compiler searches for packages within its search path. Search
+paths can be given to the compiler on the command line
+\begin{lstlisting}
+    alba -I path/to/package_1 -I path/to/package_2 ... compile
+\end{lstlisting}
+or by defining an environment variable called \lstinline!ALBA_LIB_PATH!. If the
+environment variable has the content
+%
+\begin{lstlisting}
+    path/to/lib_1:path/to/lib_2:path/to/lib_3:...
+\end{lstlisting}
+%
+then the Albatross compiler searches for libraries in all these paths.
+
+The paths on the command line override the paths of the environment variable.
+
+The locations of commonly used libraries should be given by the environment
+variable and location of libraries/packages just valid for a specific program
+should be given on the command line.
+
+
+
+\section{Modules}
+
+A module is the basic compilation unit. Each module has an implementation file
+with the name \lstinline!name.al! an an optional interface file with the name
+\lstinline!name.ali!  where \lstinline!name! is the name of the module.
+
+The interface file just defines the public view of a module. Therefore it
+cannot introduce anything which does not appear in the corresponding
+implementation file.
+
+A module without an interface file cannot be used by other modules.
+
+A module file consists of a usage header and a sequence of declarations.
+
+\noindent Syntax:
+\begin{lstlisting}
+    module:       [use_block] declarations
+
+    use_block:    use module_list end
+
+    module_list:  {one_module separator ...}+
+
+    one_module:   {identifier '.' ...}+
+
+    declarations: {declaration [separator] ...}*
+
+    declaration:  class_declaration
+    |             formal_generic
+    |             assertion_feature
+    |             named_feature
+
+    formal_generic:     uidentifier ':' type
+\end{lstlisting}
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item No circularity is allowed in the usage of modules.
+
+\item An interface file can use only modules which have been used in the
+implementation file. Usage can be implicit. E.g. if module \lstinline!a! uses
+module \lstinline!b!  and module \lstinline!b! uses module \lstinline!c! then
+module \lstinline!a! uses module \lstinline!c! implicitly even if module
+\lstinline!c! has not been mentioned in the usage block of module
+\lstinline!a!.
+
+\item A used module of the same package must not be prefixed with the package
+  name.
+\end{enumerate}
+
+A separator can be a semicolon or a newline (for details on newlines as
+separators see the chapter lexical conventions \ref{lexconv}).
+
+A used module in the usage block has the form \lstinline!a.b.c.m! where
+\lstinline!m! is the name of the module and \lstinline!a.b.c! is the name of
+the package where the module resides.
+
+A formal generic is a type variable. The declaration \lstinline!A:TP! declares
+the type variable \lstinline!A! with the concept type \lstinline!TP!. The type
+variable \lstinline!A! can be replaced by any type which satisfies the concept
+(i.e. inherits from) \lstinline!TP!.
+
+The name scope of a formal generic is its module.
+
+\noindent Examples:
+
+The module \lstinline!boolean! of the basic library e.g. has the following
+interface file:
+
+\begin{lstlisting}
+    -- file: boolean.ali
+
+    immutable class BOOLEAN end
+
+    false: BOOLEAN
+    true:  BOOLEAN
+    (==>) (a,b:BOOLEAN): BOOLEAN
+    (and) (a,b:BOOLEAN): BOOLEAN
+    (or)  (a,b:BOOLEAN): BOOLEAN
+
+    (not) (a:BOOLEAN): BOOLEAN)   -> a ==> false
+    (=)   (a,b:BOOLEAN): BOOLEAN) -> (a ==> b) and (b ==> a)
+    
+    all(a,b:BOOLEAN)
+        ensure
+            (not a ==> false) ==> a
+            a and b ==> a
+            a and b ==> b
+            ...
+        end
+\end{lstlisting}
+
+The module declares the type \lstinline!BOOLEAN! as immutable. I.e. all
+objects of type \lstinline!BOOLEAN! cannot be modified.
+
+If a class has the same name as the module, just in uppercase, then the class
+is available to the users without any qualification. If a class has a name
+different from the module name it can be accessed by the users of the module
+only by qualifying the class name with the modulename. E.g. the class
+\lstinline!A! declared in the module \lstinline!x! has to be used outside the
+defining module as \lstinline!x.A!. Sometimes it might even be necessary to
+add the package name (e.g. \lstinline!p.x.A!) to disambiguate the situation.
+
+Furthermore it defines the constants \lstinline!true! and
+\lstinline!false!. No definition of these constants are visible to the
+user. The implementation file might have a definition of these constants, but
+they are hidden from the user.
+
+The three binary boolean functions implication \lstinline!==>!, conjunction
+\lstinline!and! and disjunction \lstinline!or! are declared without definition
+which means their definition is not available to the user.
+
+The functions negation \lstinline!not! and boolean equivalence \lstinline!=!
+are declared with a definition. Since the definition is visible the compiler
+can expand any expression of the form \lstinline!not (x + y = y)! to
+\lstinline!(x + y = z) ==> false!
+
+The assertion declaration states valid assertions about booleans. In the
+interface file the assertions are just stated. The proofs can be found in the
+corresponding implementation file \lstinline!boolean.al!.
+
+The first assertion \lstinline!(not a ==> false) ==> a! gives us the
+opportunity to prove any assertion \lstinline!a! by assuming \lstinline!not a!
+and deriving from it \lstinline!false!.
+
+
+The module \lstinline!any! of the basic library has the following interface file:
+
+\begin{lstlisting}
+    -- file: any.ali
+    use boolean end
+
+    deferred class ANY end
+
+    G: ANY
+
+    (=)  (a,b:G): BOOLEAN    deferred end
+    (/=) (a,b:G): BOOLEAN -> not (a = b)
+
+    all(a:G) deferred ensure a = a end
+    all(a:G) ensure a /= a ==> false end
+
+    immutable class boolean.BOOLEAN
+    inherit         ANY end
+\end{lstlisting}
+
+The module declares the class \lstinline!ANY! as a deferred class which means
+that it can have deferred functions and/or assertions which have to be defined
+in other classes which inherit from the class \lstinline!ANY!.
+
+The module defines a formal generic \lstinline!G! which is a type
+variable. Any type can be substituted for \lstinline!G! as long as the type
+inherits from the class \lstinline!ANY!.
+
+The module \lstinline!any! has the purpose to define equality. Therefore it
+declares a deferred function named \lstinline!=! which compares two objects of
+the same type. Any descendant of \lstinline!ANY! has to define the function or
+redeclare it as deferred. Furhtermore it declares an assertion stating
+reflexivity of equality. Since the assertion is deferred any descendant of the
+class \lstinline!ANY!  has to either proof this statement or restate it as
+deferred.
+
+Inequality \lstinline!/=! is defined in the module \lstinline!any! as an
+effective function. This function is inherited to any descendant.
+
+Furthermore the module \lstinline!any! states that it has proved the fact
+that \lstinline!a /= a ==>! \lstinline!false! is valid for any \lstinline!a!. Any
+descendant of \lstinline!ANY! can take this fact for granted.
+
+Note that the class name \lstinline!BOOLEAN! is qualified with the module name
+in the inheritance class despite the fact that the class \lstinline!BOOLEAN!
+has the same name as the corresponding module. The qualification is necessary
+in this case because otherwise the compiler would generate a new class
+\lstinline!BOOLEAN! of the module \lstinline!any! which is different from the
+corresponding class of the module \lstinline!boolean!.
+
+The module \lstinline!any! states with this inheritance clause that the class
+\lstinline!BOOLEAN! can inherit the class \lstinline!ANY! i.e. that it has a
+function \lstinline!=! which is reflexive.
+
+The module \lstinline!boolean! cannot state this inheritance relation because
+it cannot use the module \lstinline!any! since the module \lstinline!any!
+already uses the module \lstinline!boolean!  and no circularity is allowed.
+
+
+
+\section{Classes}
+%
+\noindent Syntax:
+\begin{lstlisting}
+    class_declaration:  [header_mark] class
+                        class_name [class_generics]
+                        [inherit_clause]
+                        end
+
+    header_mark:        immutable | deferred
+
+    class_name:         {identifier '.' ...}* uidentifier
+
+    class_generics:     '[' {uidentifier ',' ...}+ ']'
+\end{lstlisting}
+
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item In a class declaration only formal generics can be used which have
+  already been declared in the surrounding module.
+
+\item A redeclaration of a class must have the same header mark, the same
+  number of generics and the formal generics must have the same concepts as
+  the previous declaration.
+
+\item All deferred functions and assertions of a class have to be declared in
+  the same module as the first declaration of the class.
+
+\item If a class has already been used as a parent in an inheritance clause
+  then no more deferred functions and assertions can be declared for the class.
+\end{enumerate}
+
+The first declaration of a class in a module does not have an inheritance
+clause i.e. it has one of the forms
+
+\begin{lstlisting}
+    immutable class BOOLEAN end        -- file: boolean.al[i]
+
+    deferred class ANY end             -- file: any.al[i]
+
+    deferred class PARTIAL_ORDER end   -- file: partial_order.al[i]
+
+    immutable class FUNCTION[A,B] end  -- file: function.al[i]
+\end{lstlisting}
+After the class has been declared with its potential formal generics, features
+and assertions can be introduced to the class.
+
+Having enough features and assertions it is be possible to add inheritance
+clauses to the class.
+
+A class declaration where the classname is unqualified always declares a class
+which belongs to the current module. The first declaration of a class within a
+module introduces a new class.
+
+If a class has the same name as the module (just in upper case) then the class
+can be used by other modules to declare types without any qualification
+(however qualification can be used to remove ambiguities).
+
+A class having a name different from the module name can be used outside the
+defining module to define types only by adding the module name to the class
+name in front of the class name.
+
+A class can redeclared as often as needed (usually to add inheritance clauses)
+as long as the redeclaration is consistent with the original declaration.
+
+Classes can be redeclared in modules different from the original module, but
+in the reclaration the class name has to be prefixed with the name of the
+original module. Without the module name a new class having
+the same name is declared. The following example illustrates this.
+
+\begin{lstlisting}
+    -- file a.ali
+    immutable class A end    -- declares a new class 'A' in module 'a'
+
+    -- file b.ali
+    immutable class A end    -- declares a new class 'A' in module 'b'
+
+    immutable class a.A end  -- redeclares the class 'A' of the module 'a'
+\end{lstlisting}
+
+
+\section{Inheritance}
+
+\noindent Syntax:
+\begin{lstlisting}
+    inherit_clause:    inherit {parent [separator] ...}+
+
+    parent:            [ghost] type
+\end{lstlisting}
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item Immutable types cannot be used as parents.
+
+\item A parent can involve only formal generics of the inheriting class.
+
+\item The inheritance relation must be acyclic.
+
+\item All deferred functions and assertions of the parent have to be present
+  in the inheriting class, either redeclared as deferred or redeclared with a
+  definition or proof respectively.
+
+\item All effective features of the parent which have already a declaration in
+  the inheriting class must be consistent with the definition in the parent.
+
+\item If a deferred function of the parent is present in the inheriting class
+  as a ghost function then the parent must be a ghost type.
+\end{enumerate}
+
+\section{Types}
+
+\noindent Syntax:
+\begin{lstlisting}
+    type:   simple_type
+    |       predicate_type
+    |       function_type
+    |       '(' {type ',' ...}+ ')'
+
+    simple_type:       class_name [actual_generics]
+
+    actual_generics:   '[' {type ',' ...}+ ']'
+
+    predicate_type:    type '?'
+
+    function_type:     type '->' type
+
+    -- '?' has higher precedence than '->'
+\end{lstlisting}
+
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item The number of actual generics has to coincide with the number of formal
+  generics of the class.
+
+\item Each actual generic has to satisfy the concept of the corresponding
+  formal generic of the class.
+\end{enumerate}
+
+\noindent Examples:
+%
+\begin{lstlisting}
+    (A,B,C)      -- tuple with three types
+                 -- parsed as (A,(B,C))
+                 -- shorthand for TUPLE[A,TUPLE[B,C]]
+
+    A -> B       -- shorthand for FUNCTION[A,B]
+
+    (A,B) -> C   -- shorthand for FUNCTION[(A,B),C]
+
+    A -> B -> C  -- shorthand for FUNCTION[A, FUNCTION[B,C]]
+                 -- '->' is right associative
+
+    A?           -- shorthand for PREDICATE[A] i.e. a set of
+                 -- elements of type A
+
+    (A,B)?       -- shorthand for PREDICATE[(A,B)] i.e. a set of
+                 -- tuples of type (A,B)
+
+    A -> B?      -- shorthand for FUNCTION[A,PREDICATE[B]]
+
+    (A -> B)?    -- shorthand for PREDICATE[FUNCTION[A,B]]
+\end{lstlisting}
+
+The basic library has the modules \lstinline!tuple!, \lstinline!predicate! and
+\lstinline!function!. If any of the corresponding types is used the module has
+to appear directly or indirectly in the use block of the using module.
+
+
+
+\section{Named features}
+
+\noindent Syntax:
+\begin{lstlisting}
+    named_feature: feature_name ['(' formals ')' ]
+                   [':' [ghost] type]
+                   [feature_body]
+
+    feature_name:  identifier
+    |              '(' operator ')'
+    |              number
+    |              true
+    |              false
+
+    formals: {formal_argument ',' ...}+
+
+    formal_argument:  identifier [':' type]
+
+    feature_body:  '->' expression
+    |              '='  expression
+    |              [require_block]
+                   [feature_implementation]
+                   [ensure_block]
+                   end
+
+    require_block: require {expression separator ...}+
+
+    ensure_block:  ensure  {expression separator ...}+
+
+    feature_implementation:  deferred
+\end{lstlisting}
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item In a named feature at least one of the optional components must be
+  present.
+
+\item In the feature body at least one of the optional components must be
+  present. I.e. a feature body cannot consist of the keyword \lstinline!end! only.
+
+\item If the feature body is \lstinline!-> expression! then formal arguments must be
+  present and the expression must not have any preconditions i.e. the function
+  is total.
+
+\item If the feature body is \lstinline!= expression! then the feature is a constant and
+  no formal arguments are allowed and the expression must not have any
+  preconditions.
+
+\item If the feature name is an operator there must be one formal argument for
+  unary operators and two formal arguments for binary operators. Note that
+  most of the operators can be unary and binary.
+
+\item If the implementation of a function is not computable (e.g. if it
+  involves universal or existential quantification) then the keyword
+  \lstinline!ghost!  must be present in the result type.
+
+\item The postcondition of a function might be of the form
+  \lstinline!Result = exp!. If the expression contains non computable elements
+  then the function must be declared as ghost function.
+
+\item If the postcondition specifies only properties of the return value then
+  the function has to be declared as ghost function and the proof engine must
+  be able to prove the existence and uniqueness of the return value.
+\end{enumerate}
+
+
+\noindent Examples:
+
+\noindent A simple declaration without body:
+\begin{lstlisting}
+    my_function (a,b:A, d:D): RT
+\end{lstlisting}
+%
+This is a valid declaration of a function having the signature
+\lstinline!(A,A,B):RT!. The function has no body. Within an implementation
+file such a feature is practically useless because you cannot do anything with
+it. In an interface file this declaration can be useful if assertions are
+given which supply useful properties of the function.
+
+\noindent A constant and a binary operator without body and a unary and binary operator
+with body:
+\begin{lstlisting}
+    false: BOOLEAN
+
+    (==>) (a,b:BOOLEAN): BOOLEAN
+
+    (not) (a:BOOLEAN): BOOLEAN   -> a ==> false
+
+    (=)   (a,b:BOOLEAN): BOOLEAN -> (a ==> b) and (b ==> a)
+\end{lstlisting}
+
+\noindent The empty set and the universal set defined as constants with body:
+\begin{lstlisting}
+    G: ANY
+
+    0: G? = {x: false}
+    1: G? = {x: true}
+\end{lstlisting}
+
+
+\noindent A ghost function involving non computable elements in its definition:
+\begin{lstlisting}
+    PO: PARTIAL_ORDER
+
+    is_lower_bound (a:PO, p:PO?): ghost BOOLEAN
+        -> all(x) x in p ==> a <= x
+\end{lstlisting}
+
+
+\noindent Declaration of a function with a precondition:
+\begin{lstlisting}
+    A: ANY; B: ANY
+
+    value_at (f:A->B, a:A):B -> f(a)  -- ILLEGAL!!
+
+    value_at (f:A->B, a:A):B
+        require
+            a in f.domain
+        ensure
+            Result = f(a)
+        end
+\end{lstlisting}
+%
+All functions in Albatross are potentially partial. Therefore the first
+declaration is not valid because the expression has a precondition. The second
+declaration is valid because it makes the precondition explicit.
+
+\noindent Declaration of a function by using properties:
+\begin{lstlisting}
+    A:ANY; B:ANY
+
+    inverse (f:A->B): ghost (B->A)
+        require
+            f.is_injective
+        ensure
+            Result.domain = f.range
+            all(x) x in f.domain ==> Result(f(x)) = x
+        end
+\end{lstlisting}
+%
+The inverse of a function has to be declared as a ghost function because the
+return value of \lstinline!inverse! is specified in the postcondition with
+properties and not directly with a computable formula.
+
+Note: If the return value of a function is given by properties then proof
+engine must be able to prove that the return value exists and that it is
+unique.
+
+
+
+\section{Assertions} \label{assertions}
+
+\noindent Syntax:
+\begin{lstlisting}
+    assertion_feature: all '(' formals ')'
+                       [require_block]
+                       [proof_block]
+                       ensure_block
+                       end
+
+    proof_block:       proof {proof_expression separator ...}+
+
+    proof_expression:  expression
+    |                  assertion_feature
+    |                  [require_block]
+                       proof_block
+                       ensure_block
+                       end
+\end{lstlisting}
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item All assertions must be provable by the proof engine.
+\end{enumerate}
+
+\noindent Examples:
+
+\begin{lstlisting}
+    all(p:G?)
+        require
+            some(x) x in p
+        proof
+            all(x) x in p ==> p /= 0    
+        ensure
+            p /= 0
+        end  
+\end{lstlisting}
+
+
+\begin{lstlisting}
+    all(p:G?)
+        require
+            p /= 0
+        proof
+            not (some(x) x in p) ==> false
+        ensure
+            some(x) x in p
+        end
+\end{lstlisting}
+
+\begin{lstlisting}
+    all(p,q:G?)
+        require
+             p /= 0
+        proof
+             some(x) x in p
+             all(x)
+                 require
+                     p(x)
+                 proof
+                     x in p + q
+                     some(x) x in {x: x in p + q}
+                 ensure
+                     p + q /= 0
+                 end
+        ensure
+             p + q /= 0
+        end
+\end{lstlisting}
+
+
+
+\section{Expressions}
+
+\noindent Syntax:
+\begin{lstlisting}
+    expression: simple_expression
+    |           operator_expression
+    |           f_call
+    |           oo_call
+    |           tuple
+    |           function_literal
+    |           predicate_literal
+    |           listed_set
+    |           quantified
+    |           '(' expression ')'
+
+    simple_expression:
+                identifier | number | false | true | Result
+
+    operator_expression:
+                expression binary_operator expression
+    |           unary_operator expresssion
+    
+    f_call:     expression '(' actuals ')'
+
+    oo_call:    expression '.' identifier ['(' actuals ')']
+
+    tuple:      '(' expression ',' {expression ',' ...}+ ')'
+
+    actuals:    {expression ',' ...}+
+
+    function_literal:
+                '(' formals ')' [':' type] '->' expression
+                   
+    predicate_literal:
+                '{' formals ':' expression '}'
+
+    listed_set: '{' {expression ',' ...}+ '}'
+
+    quantified: quantifier '(' formals ')' expression
+
+    quantifier: all | some
+
+    binary_operator:
+                '+' | '-' | '*' | '/' | and | or | '==>' |
+                '^' |
+                '<=' | '<' | '>' | '>=' |
+                '=' | '/=' | '~' | '/~' |
+                free_operator
+
+    unary_operator:
+                not | old | '+' | '-' | '*' | free_operator
+\end{lstlisting}
+
+\noindent Precedence and associativity:
+
+Ambiguities are resolved according to the following precedences and
+associativities starting with the highest precedence.
+\begin{lstlisting}
+    '.'                        -- left
+    not, old
+    free_operator              -- left
+    '^'                        -- right
+    '*', '/'                   -- left
+    '+', '-'                   -- left
+    '<=', '<', '>=', '>', '=', '/=', '~', '/~', in, /in
+    and, or
+    '==>'                      -- right
+\end{lstlisting}
+
+
+\noindent Examples:
+
+Functions can be called in functional or in object oriented notation. The
+following expressions are equivalent
+
+\begin{lstlisting}
+    -- functional                    object oriented
+
+    f(x,y,...)                       x.f(y,...)
+
+    f(x)                             x.f
+
+    f(f(f(f(x))))                    x.f.f.f.f
+\end{lstlisting}
+
+If the argument of a call is a tuple then nested parentheses are not
+necessary, i.e. the following simplified notation is possible (only for
+functional notation).
+
+\begin{lstlisting}
+    -- detailed                     simplified
+    r((x,y))                        r(x,y)
+\end{lstlisting}
+
+Tuples are parsed with right association.
+\begin{lstlisting}
+    -- tuple                        parsed as
+    (a,b,c,...)                     (a,(b,(c,...)))
+\end{lstlisting}
+
+The quantifiers and the arrow \lstinline!->! are greedy i.e. they span to the
+right as far as possible. To limit the span parentheses can be used.
+
+A listed set is just a shorthand notation. The parser does the following
+expansion
+
+\begin{lstlisting}
+     -- shorthand                   expansion
+     {a,b,...}                      a.singleton + b.singleton + ...
+\end{lstlisting}
+
+
+\section{Lexical Conventions} \label{lexconv}
+
+
+There are two types of comments. The first one starts with the sequence
+\lstinline!--! followed by a blank and spans to the end of the line. The
+second one begins with the sequence \lstinline!{:! and ends with
+  \lstinline!:}! and spans arbitrarily long. The second comment type can be
+nested. Comments are completely ignored by the compiler.
+
+\newcommand {\semicol}{\lstinline!;!}
+
+A separator is either the semicolon or a newline between an endtoken and a
+begintoken.
+
+\begin{lstlisting}
+    begintoken:    identifier
+                   uidentifier
+                   number
+                   require
+                   ensure
+                   proof
+                   true
+                   false
+                   not
+                   '('
+                   '['
+                   '{'
+
+    endtoken:      identifier
+                   uidentifier
+                   number
+                   true
+                   false
+                   ')'
+                   ']'
+                   '}'
+\end{lstlisting}
+Note that no operator can be an endtoken because Albatross does not have
+postfix operators. Furthermore nearly all operators cannot be starttokens
+either. Therefore if a new expression starts with a unary operator the
+expressions has to be either parenthesized or the previous expression has to
+be terminated with a semicolon.
+
+\begin{lstlisting}
+    identifier:    [a-z][a-z0-9_]*
+
+    uidentifier:   [A-Z][A-Z0-9_]*
+
+    number:        [0-9]+
+
+    free_operator: [+-/*<>=~|^]+
+\end{lstlisting}
+
+\noindent The folling identifiers are reserved words in Albatross:
+\begin{lstlisting}
+    all          and          as          assert
+    case         check        class       create
+    deferred     do
+    else         elseif       end         ensure
+    false        feature      from
+    ghost
+    if           immutable    import      in          inherit
+    inspect      invariant
+    local
+    not          note
+    old          or
+    proof
+    redefine     rename       require
+    some
+    then         true
+    undefine     use
+    variant
+    while
+\end{lstlisting}
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "albatross"
+%%% End: 

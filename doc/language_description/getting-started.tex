@@ -1,0 +1,441 @@
+\section{Getting Started}
+
+\subsection{A Minimal Albatross Program}
+
+In the following we assume that you have successfully installed the Albatross
+compiler under the name \lstinline!alba! and compiled the basic library of the
+Albatross system and initialized an environment variable which points to the
+location of the base library as described in the Readme file of the albatross
+distribution.
+
+
+An Albatross program is an albatross package which is a directory with
+collection of albatross source files. Since we want to create a minimal
+albatross programm we create a package by creating a new directory with one
+source file called \lstinline!minimal.al!. Any text editor can be used to create the
+file.
+
+Our version of the minimal program looks like
+
+\begin{lstlisting}
+    -- file: minimal.al
+
+    use
+       alba.base.boolean   -- uses the module 'boolean' of the
+                           -- library 'alba.base'
+    end
+
+    all(a:BOOLEAN)
+        require
+            a              -- assume 'a'
+        ensure
+            a              -- conclude 'a'
+        end
+\end{lstlisting}
+
+The directory where the source file resides is not yet initialized as an
+albatross directory. We initialize it by issuing the command
+\begin{lstlisting}
+    alba init
+\end{lstlisting}
+from the command line. The albatross compiler keeps track of dependencies
+between modules and the init command creates a hidden subdirectory in the
+package directory where the compiler can store dependencies and some other
+information of compiled modules.
+
+Issuing the command
+\begin{lstlisting}
+    alba status
+\end{lstlisting}
+we get the information
+\begin{lstlisting}
+    new:    minimal.al
+\end{lstlisting}
+i.e. the compiler tells us that the file is new and has not yet been compiled.
+
+With the command
+\begin{lstlisting}
+    alba compile
+\end{lstlisting}
+we compile the module successfully and a following request of the status shows
+that nothing has to be done on the package.
+
+If we modify the file and request the status again we get the answer
+\begin{lstlisting}
+    modified:   minimal.al
+\end{lstlisting}
+and in the case that more modules depend on this module the list of all
+files which need recompilation because of the modification.
+
+Now let us look at the content of the source file. The first block of a source
+file is the usage block where all used modules are declared.
+
+Our minimal program uses just the module \lstinline!boolean! of the library
+\lstinline!alba.base!. This is necessary because we want to use a variable of
+type \lstinline!BOOLEAN! which is declared in the module \lstinline!boolean!
+of the base library.
+
+You can hardly do anything without the data type \lstinline!BOOLEAN! in any
+Albatross module. Therefore it is always used either explicitly or
+implicitly. The module \lstinline!boolean! of the base library is the only
+module which doesn't use other modules.
+
+After the use block there is one proof which proves a rather trivial fact. It
+declares a variable \lstinline!a! of type \lstinline!BOOLEAN! for the scope of
+the proof. Then it assumes that \lstinline!a! is valid. From the assumption it
+concludes that \lstinline!a! is valid which succeeds trivially.
+
+After the successful proof the proof engine generates the expression
+\begin{lstlisting}
+    all(a:BOOLEAN) a ==> a
+\end{lstlisting}
+and adds it to the global context. It has proved \lstinline!a! under the
+assumption \lstinline!a!  for an arbitrary boolean expression which is a proof
+of the implication \lstinline!a ==> a!.
+
+This {\em discharging} of the assumptions is a generic procedure of the proof
+engine. Whenever the proof engine can verify the assertion
+\begin{lstlisting}
+    all(x:X, y:Y,...)
+        require
+            a; b; ...
+        proof
+            ...
+        ensure
+            z
+        end
+\end{lstlisting}
+it generates the discharged expression
+\begin{lstlisting}
+    all(x:X, y:Y, ...) a ==> b ==> ... ==> z
+\end{lstlisting}
+and adds it to the context.
+
+Note that implication is right associative.
+
+\subsection{Resoning with Implication}
+
+Implication is the most important boolean operator for doing proofs. The
+assertion \lstinline!a ==> b! states that from \lstinline!a! we can immediatly
+conclude \lstinline!b!.
+
+We can express the modus ponens law in Albatross as
+
+\begin{lstlisting}
+     all(a,b:BOOLEAN)    -- modus ponens law of logic
+         require
+             a
+             a ==> b
+         ensure
+             b
+         end
+\end{lstlisting}
+
+This law is hardwired within the proof engine. Therefore the above assertion
+compiles without problems.
+
+
+The implication operator is right associative i.e. \lstinline!a ==> b ==> c!
+is parsed as \lstinline!a ==> (b ==> c)!. Therefore we can prove
+
+\begin{lstlisting}
+    all(a,b,c:BOOLEAN)
+        require
+            a ==> b ==> c
+            a
+        ensure
+            b ==> c
+        end
+\end{lstlisting}
+
+in one step by applying the modus ponens law. From \lstinline!a! and
+\lstinline!a ==> b ==> c! we can conclude \lstinline!b ==> c!. If we have
+furthermore \lstinline!b! we can conclude \lstinline!c!. I.e. the following
+compiles as well
+
+
+\begin{lstlisting}
+    all(a,b,c:BOOLEAN)
+        require
+            a ==> b ==> c
+            b
+            a
+        ensure
+            c
+        end
+\end{lstlisting}
+
+Note that the order of the assumptions is irrelevant for the validity of the
+conclusion.
+
+The Albatross compiler does a full forward closure with respect to implication
+so that the following assertion is accepted by the compiler as well.
+
+\begin{lstlisting}
+    all(a,b,c,d,x,y,z:BOOLEAN)
+        require
+            a ==> b ==> c
+            a ==> b ==> d
+            x ==> y ==> z
+            c ==> x
+            d ==> y
+            a
+            b
+        ensure
+            z
+        end
+\end{lstlisting}
+
+
+Let us see how the compiler verifies this assertion. Internally the compiler
+generates the following detailed proof
+
+\begin{lstlisting}
+    all(a,b,c,d,x,y,z:BOOLEAN)
+        require
+            a ==> b ==> c   --  1
+            a ==> b ==> d   --  2
+            x ==> y ==> z   --  3
+            c ==> x         --  4
+            d ==> y         --  5
+            a               --  6
+            b               --  7
+        proof  -- generated by the proof engine
+            b ==> c         --  8 from 6,1
+            c               --  9 from 7,8
+            b ==> d         -- 10 from 6,2
+            d               -- 11 from 7,10
+            x               -- 12 from 9,4
+            y               -- 13 from 11,5
+            y ==> z         -- 14 from 13,3
+        ensure
+            z               -- from 13,14
+        end
+\end{lstlisting}
+
+All these steps are trivial applications of the modus ponens law. But it would
+be very ackward if the programmer had to enter all these steps. Better let the
+compiler generate these steps.
+
+\subsection{The Deduction Law}
+
+Like the modus ponens law, the deduction law is hardwired into the proof
+engine.
+
+The law states: We can prove an implication \lstinline!a ==> b! by assuming
+\lstinline!a! and deriving \lstinline!b! from it. On the other hand if we can
+prove \lstinline!b! under the assumption of \lstinline!a! we can conclude the
+implication \lstinline!a ==> b! from it.
+
+
+We can demonstrate the application of the deduction law with the example of
+the trivial assertion \lstinline!a ==> a!.
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        ensure
+            a ==> a
+        end
+\end{lstlisting}
+
+The statement "from \lstinline!a! follows \lstinline!a!" is intuitively evident to us. But how do
+we prove it? The compiler uses the deduction law and creates the following
+detailed proof
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        proof   -- generated by the proof engine
+            require
+                a
+            ensure
+                a
+            end
+        ensure
+            a ==> a
+        end
+\end{lstlisting}
+
+Since there is no direct proof of \lstinline!a ==> a! the proof engine shifts the
+antecedent \lstinline!a! of the implication into the assumptions and tries to prove the
+consequent \lstinline!a! of the implication from it. The latter step succeeds trivially
+because the assumption and the goal are identical.
+
+Don't be misled by the triviality of the example. The deduction law scales to
+more complicated settings and is very useful. Let's assume that we want to
+prove the implication chain \lstinline!a ==> b ==> c ==> ... ==> z!. In order to prove
+the chain the proof engine tries the deduction law
+
+\begin{lstlisting}
+    all(a,b,c,...,z:BOOLEAN)
+        proof
+            require
+                 a; b; c; ...
+            proof
+                 ...
+            ensure
+                 z
+            end
+        ensure
+            a ==> b ==> c ==> ... ==> z
+        end
+\end{lstlisting}
+
+and it is very convenient that the engine does it automatically.
+
+
+
+
+\subsection{Conjunction}
+
+The interface file of the module \lstinline!boolean! gives us the following statements
+about conjunction
+
+\begin{lstlisting}
+    -- file: boolean.ali
+    (and) (a,b:BOOLEAN): BOOLEAN
+
+    all(a,b:BOOLEAN)
+        ensure
+            a ==> b ==> a and b    -- introduction rule of 'and'
+            a and b ==> a          -- elimination rule of 'and'
+            a and b ==> b          --          "
+        end
+\end{lstlisting}
+
+For the the conjunction operator just the signature is given. From it we can
+just see that conjunction is a binary boolean operator. No definition is
+available.
+
+Instead of a definition the interface file gives us one introduction rule and
+two elimination rules.
+
+The introduction rule states: If we have a proof of \lstinline!a! and a proof
+of \lstinline!b! we can conclude \lstinline!a and b! from it.
+
+The elimination rules state: If we have a proof of \lstinline!a and b! we can conclude
+either operand from it.
+
+The introduction and elimination rules are schematic rules. For the variables
+\lstinline!a! and \lstinline!b! we can substitute any boolean expression to obtain a valid
+assertion.
+
+Using the introduction and elimination rules the proof engine can prove the
+commutativity of \lstinline!and! automatically.
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        ensure
+            a and b ==> b and a
+        end
+\end{lstlisting}
+
+In order to understand what happens under the hood let us look at the detailed
+proof which is generated by the proof engine.
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        proof   -- generated by the proof engine
+            require
+                a and b
+            proof
+                a and b ==> a
+                a
+                a and b ==> b
+                b
+                b ==> a ==> b and a
+                a ==> b and a
+            ensure
+                b and a
+            end
+        ensure
+            a and b ==> b and a
+        end
+\end{lstlisting}
+
+The generated proof is just a straighforward application of the deduction law,
+the elimination and introduction rules.
+
+Note that the proof engine applies schematic rules in forward direction only
+if the conclusion is strictly simpler than the premise. Since this is the case
+for the elimination rules of \lstinline!and! they are applied automatically.
+
+In the same manner the proof engine can prove the associativity of
+\lstinline!and!  automatically.
+
+\begin{lstlisting}
+    all(a,b,c:BOOLEAN)
+        ensure
+            a and b and c   ==> a and (b and c)
+            a and (b and c) ==> a and b and c
+            -- Note: 'and' is left associative
+        end
+\end{lstlisting}
+
+
+
+\subsection{Disjunction}
+
+The module \lstinline!boolean! of the basic library offers the following declarations
+for disjunction:
+
+\begin{lstlisting}
+    -- file: boolean.ali
+    (or) (a,b:BOOLEAN): BOOLEAN
+
+    all(a,b,c:BOOLEAN)
+        ensure
+            a ==> a or b       -- introduction law
+
+            b ==> a or b       --         "
+
+            a or b             -- elimination law
+            ==> (a ==> c)
+            ==> (b ==> c)
+            ==> c
+
+            a or a  ==> a
+            a or b  ==> not a  ==>  b
+            (not a ==> b)  ==>  a or b
+            ...
+        end
+\end{lstlisting}
+
+The operator \lstinline!or! is declared without definition. It has two introduction laws
+which should be quite obvious and one elimination law.
+
+The eliminiation law allows us to prove assertions by case split. Let's assume
+that we have the assertion \lstinline!a or b! in the context and we want to
+prove some goal \lstinline!c!. Let's further assume that we can prove the goal
+\lstinline!c! under the assumption of \lstinline!a! (i.e. \lstinline!a ==> c!)
+and we can prove the goal \lstinline!c! under the assumption of
+\lstinline!b!. Then the goal certainly has to be valid because either
+\lstinline!a!  or \lstinline!b! is valid.
+
+What does the proof engine if it sees an disjunction of the form
+\lstinline!a or b! in the context? It does a partial specialization of the
+elimination law. The specialization is partial because we have substitution
+values for \lstinline!a! and \lstinline!b!  but not for \lstinline!c!. The
+partial specialization looks like
+
+\begin{lstlisting}
+    a or b ==> all(c) (a ==> c) ==> (b ==> c) ==> c
+\end{lstlisting}
+
+After this it applies the modus ponens law to get
+\begin{lstlisting}
+    all(c) (a ==> c) ==> (b ==> c) ==> c
+\end{lstlisting}
+into the context.
+
+
+Note that \lstinline!a! and \lstinline!b! are no longer bound variables.
+
+
+
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% case-fold-search: nil
+%%% TeX-master: "albatross"
+%%% End: 

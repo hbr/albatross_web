@@ -1,0 +1,512 @@
+\chapter{Proof Engine}
+
+
+\section{Rules of the Proof Engine}
+
+
+The proof engine is based on a view very simple rules and knows only of
+universal quantification, existential quantification and implication.
+
+\subsection{Modus Ponens and Deduction Law}
+
+The modus pones law says: Whenever the assertions
+\begin{lstlisting}
+    a
+
+    a ==> b
+\end{lstlisting}
+are valid with arbitrary boolean expressions \lstinline!a! and \lstinline!b!
+then we can conclude the validity of
+%
+\begin{lstlisting}
+    b
+\end{lstlisting}
+
+The modus ponens law allows the proof engine to draw conclusion by following
+implications.
+
+The deduction law allows us to prove implications. It says: In order to prove
+the implication
+\begin{lstlisting}
+    a ==> b
+\end{lstlisting}
+with arbitrary boolean expression \lstinline!a! and \lstinline!b! we can
+assume \lstinline!a! and prove \lstinline!b!  under this assumption. I.e. the
+two assertions
+\begin{lstlisting}
+    a ==> b
+
+    require
+        a
+    proof
+        ...
+    ensure
+        b
+    end
+\end{lstlisting}
+are equivalent i.e. if we can prove the latter we have proved the former.
+
+The deduction law can be generalized to arbitrary implication chains. I.e. the
+proof engine is allowed to prove the chain
+
+\begin{lstlisting}
+    a ==> b ==> ... ==> z
+\end{lstlisting}
+%
+by proving the assertion
+\begin{lstlisting}
+    require
+        a; b; ...
+    proof
+        ...
+    ensure
+        z
+    end
+\end{lstlisting}
+
+
+\subsection{Generalization of Variables}
+
+Assume that we want to prove the assertion
+
+\begin{lstlisting}
+    all(x,y,...) exp
+\end{lstlisting}
+
+I.e. we have to prove that \lstinline!exp! is valid for all possible values of the
+variables.
+
+Such a statement can be proved by assuming arbitrary values for the
+variables and proving the expression.
+
+The proof engine proves a universally quantified statement by shifting the
+variables into the context and then proving the expression. If this is
+successful then the validity of the universally quantified assertions is
+concluded.
+
+Furthermore the proof engine knows that in can reorder the variables and
+bubble up variables i.e. it considers the two following assertions equivalent
+(with proper renamings of variables to avoid name clashes).
+
+\begin{lstlisting}
+    all(x,y) a ==> b ==> all(z) c
+
+    all(y,x,z) a ==> b ==> c
+\end{lstlisting}
+
+The last rule is used by the proof engine to transform universally quantified
+expressions to prenex normal form.
+
+
+
+\subsection{Specialization of Variables}
+
+If there is a proved statement of the form
+\begin{lstlisting}
+    all(x:X, y:Y,...) exp
+\end{lstlisting}
+%
+the proof engine is allowed to generated valid asssertions by substituting the
+variables \lstinline!x,y,...! by arbitrary expressions of consistent type.
+
+The specialization can be partial if the expression \lstinline!exp! is an
+implication where the first assumption contains only a part of the
+variables. E.g. if we have the proved assertion
+
+\begin{lstlisting}
+    all(x,y) f(x) ==> g(x,y)
+\end{lstlisting}
+and the expression \lstinline!a! has a type compatible to the type of
+\lstinline!x! then the proof engine can do a partial specialization and
+conclude the assertion
+
+\begin{lstlisting}
+    f(a) ==> all(y) g(a,y)
+\end{lstlisting}
+
+If the first premise in the implication chain does not contain any of the
+variables then partial specialization can be done as well. E.g. the assertion
+\begin{lstlisting}
+    all(a:BOOLEAN) false ==> a       -- ex falso quodlibet
+\end{lstlisting}
+can be partially specialized to
+\begin{lstlisting}
+    false ==> all(a:BOOLEAN) a
+\end{lstlisting}
+
+
+\noindent Example:
+\begin{lstlisting}
+    all(x,y,z) x or y ==> (x ==> z) ==> (y ==> z) ==> z
+    a in p or a in q
+
+    -- allows the partial specialization
+    (a in p or a in q) ==>
+    all(z) (a in p ==> z) ==> (a in q ==> z) ==> z
+\end{lstlisting}
+
+
+\subsection{Existencial Quantification}
+
+The existentially quantified assertion
+%
+\begin{lstlisting}
+    some(x,y,...) exp
+\end{lstlisting}
+%
+can be proved by substituting the variables \lstinline!x,y,...! in the
+expression \lstinline!exp! by some other expressions and proving the
+substituted expression. This method is called {\em finding a witness for the
+existentially quantified variables}.
+
+If the above existentially quantified assertion has already been proved the
+proof engine is allowed to conclude the following assertion from it.
+\begin{lstlisting}
+    all(a:BOOLEAN) (all(x,y,...) exp ==> a) ==> a
+\end{lstlisting}
+The validity of this assertion should be obvious. If there exist some values
+for the variables \lstinline!x,y,...! so that the expression \lstinline!exp!
+is valid and for all values of the variables the validity of \lstinline!exp!
+implies the validity of \lstinline!a! then the assertion \lstinline!a! is
+valid.
+
+
+
+\subsection{Function Expansion}
+
+The proof engine is allowed to expand function definitions. E.g. boolean
+negation is defined as
+%
+\begin{lstlisting}
+    (not) (a:BOOLEAN) ->  a ==> false
+\end{lstlisting}
+%
+Therefore the proof engine can expand the expression
+%
+\begin{lstlisting}
+    not (a <= b)
+\end{lstlisting}
+%
+to
+%
+\begin{lstlisting}
+    a <= b  ==> false
+\end{lstlisting}
+
+
+\subsection{Beta Reduction}
+
+Albatross has two kind of lambda expressions: function and predicate literals
+of the form
+%
+\begin{lstlisting}
+    (x,y,...) -> exp
+
+    {x,y,...: exp}
+\end{lstlisting}
+%
+The following expressions can be substituted by \lstinline!exp2! where
+\lstinline!exp2! is \lstinline!exp!  with all variables \lstinline!x,y,...!
+substituted by the expressions \lstinline!a,b,...!.
+%
+\begin{lstlisting}
+    ((x,y,...) -> exp) (a,b,...)
+
+    {x,y,...: exp} (a,b,...)
+
+    (a,b,...) in {x,y,...: exp}
+\end{lstlisting}
+Note that \lstinline!a in p! and \lstinline!p(a)! are equivalent for
+predicates \lstinline!p!.
+
+
+
+\section{How the Proof Engine Works}
+
+A context of the proof engine is a sequence of variables and a sequence of
+assumptions and a sequence of proved assertions. Contexts can be stacked. A
+new inner context is opened by shifting variables and assumptions into the
+context. Within the context assumptions are treated as proved statements. By
+leaving a context the variables and assumptions have to be discharged.
+
+\subsection{Proof of an Assertion Feature}
+
+An assertion feature has the general form:
+\begin{lstlisting}
+    all(a,b,...)
+        require
+            assumption_1
+            assumption_2
+            ...
+        proof
+            intermediate_1
+            intermediate_2
+            ...
+        ensure
+            conclusion_1
+            conclusion_2
+        end
+            
+\end{lstlisting}
+where all assumptions and conclusions are expressions and all intermediate
+assertions are expressions or nested assertion features with or without new
+variables.
+
+The proof engine proves an assertion feature by the following
+algorithm.
+
+\begin{enumerate}
+\item Open an new context
+
+\item Shift all variables into the context.
+
+\item For all assumptions: Prove the preconditions of the assumption and shift
+  the assumtion into the context.
+
+\item For all intermediate assertions:
+  \begin{enumerate}
+  \item If it is an expression then prove all preconditions and prove the
+    expression and add it to the context.
+  \item If it is an assertion feature then apply this algorithm recursivly and
+    add the result to the context.
+  \end{enumerate}
+
+\item For all conclusions prove the preconditions of the conclusion and the
+  conclusion and add the conclusion to the context.
+
+\item Leave the context and add all conclusions with properly discharged
+  variables and assumtions to the outer context
+\end{enumerate}
+
+
+\subsection{Prove an Assertion}
+
+Proving of any assertion (precondition or assertion expression) is done by
+the following algorithm:
+
+\begin{enumerate}
+\item Forward close the context by forward reasoning.
+
+\item Enter the assertion as deep as possible i.e. split universal
+  quantification and add the corresponding variables and split implications
+  and add assumptions.
+
+\item Directyl prove the goal. In case of success the proof is done. In case
+  of failure continue.
+
+\item Prove the goal by backward reasoning.
+
+\item Reverse the entering process and discharge the proved goal.
+\end{enumerate}
+
+
+\subsection{Directly Prove a Goal}
+
+The proof engine tries to directly prove a goal after it has been fully
+entered i.e. the goal is neither a universally quantified expression nor an
+implication.
+
+A goal is directly provable if one of the following holds:
+\begin{enumerate}
+\item The goal is already in the context.
+
+\item A schematic assertion can be found in the context together with a
+  substitution so that the substitution applied to the schematic assertion
+  makes it identical with the goal.
+
+\item The goal is an existentially quantified assertion and a witness
+  expression can be found in the context to prove the existential
+  quantification.
+
+\item The goal is an equality of the form
+  \begin{lstlisting}
+      f(a1,a2,...) = f(b1,b2,...)
+  \end{lstlisting}
+  and the assertions
+  \begin{lstlisting}
+      a1 = b1
+      a2 = b2
+      ...
+  \end{lstlisting}
+  are already in the context.
+\end{enumerate}
+
+
+
+\subsection{Entering and Discharging}
+
+An assertion expression has the general form
+\begin{lstlisting}
+    all(x,y,...) a ==> b ==> ... ==> z
+\end{lstlisting}
+where the universal quantification and the premises of the implication chain
+are optional. If no universal quantification and no premises are present then
+the assertion expression is the unsplittable expression \lstinline!z! and the
+enter and the discharge procedures have nothing to do.
+
+The entering procedure consists in
+\begin{enumerate}
+\item Shift the variables \lstinline!x,y,...! into the context.
+
+\item Shift the assumptions \lstinline!a,b,...! one by one into the context.
+
+\item Forward close the context by forward reasoning.
+
+\item If the target \lstinline!z! can be entered apply the procedure recursively
+\end{enumerate}
+
+After entering the assertion expression there is a goal \lstinline!z! to be
+proved which cannot be entered any more. The goal (or a witness for it) can
+either be found in the context or can be proved by backward reasoning (or the
+proof fails).
+
+Lets assume that the prove of the target goal \lstinline!z! has
+succeeded. Then the entering process has to be reversed by the discharge
+procedure. Since the entering procedure is recursive we have to consider the
+general case that the original assertion expression has the form
+%
+\begin{lstlisting}
+    all(x,y,...) a ==> b ==> ... ==> all(t,u,...) z0
+\end{lstlisting}
+%
+The proof engine normalizes the original assertion to
+%
+\begin{lstlisting}
+    all(x,y,...,t,u,...) a ==> b ==> ... ==> z0
+\end{lstlisting}
+%
+with proper renaming to avoid name clashes. Furthermore all unused variables
+are eliminated and the remaining variables are sorted to reflect the order in
+which they appear in the implication chain.
+
+
+\subsection{Forward Reasoning}
+
+Forward reasoning is the process of drawing conclusions from the assertions
+within a context. A context is forward closed by applying the following rules
+as long as possible:
+%
+\begin{enumerate}
+\item Find a pair of assertions of the form \lstinline!a! and
+  \lstinline!a ==> b! and apply the moduls ponens law by adding \lstinline!b!
+  to the context.
+
+\item Find a pair of assertions of the form \lstinline!a! and
+  \lstinline!all(x,y,...) p ==> ...!  where \lstinline!p! is not a pure
+  variable and a (partial) substitution of the variables so that \lstinline!p!
+  becomes identical to \lstinline!a! if the substitution is applied. Add the
+  (partially) specialized assertion to the context.
+
+\item Find an existentially quantified assertion \lstinline!some(x,y,...) exp!
+  and add the assertion
+  \begin{lstlisting}
+      all(a) (all(x,y,...) exp) ==> a
+  \end{lstlisting}
+  to the context.
+
+\item Find an assertion where an evaluation is possible. Add the evaluated
+  assertion to the context.
+\end{enumerate}
+
+\noindent Some restrictions apply to the application of the first and the second rule.
+\begin{enumerate}
+\item The (partial) specialization of a schematic assertion of the form
+  \begin{lstlisting}
+      all(x,y,...) a ==> b ==> ... ==> z
+  \end{lstlisting}
+  is called intermediate and remains intermediate until the final conclusion
+  \lstinline!z! has been added fully specialized to the context.
+
+\item An intermediate assertion is never used as the premise in the modus
+  ponens rule.
+
+\item The final fully specialized conclusion of an intermediate assertion is
+  added to the context only if the conclusion is simpler than all premises. A
+  term \lstinline!a! is simpler than a term \lstinline!b! if its expression
+  tree has less nodes than the expression tree of the term \lstinline!b! after
+  all function expansions have been done.
+\end{enumerate}
+These restrictions guarantee the termination of forward reasoning.
+
+
+\subsection{Backward Reasoning}
+
+If an assertion has been fully entered and is not directly provable then the
+proof engine starts to prove the goal by backward reasoning.
+
+\begin{enumerate}
+\item Find and generate backward rules. A valid backward rule is an implication
+  chain of the form
+  \begin{lstlisting}
+      p1 ==> p2 ==> ... ==> goal
+  \end{lstlisting}
+  which has not yet been used in the proof.
+
+\item Find one backward rule for which all premises can be proved. In case of
+  success the proof is done by applying the modus ponens rule, in case of
+  failure the proof fails.
+\end{enumerate}
+
+\noindent There are two ways to generate backward rules:
+%
+\begin{enumerate}
+\item Find a schematic assertion of the form
+  \begin{lstlisting}
+      all(x,y,...) p1 ==> p2 ==> ... ==> z
+  \end{lstlisting}
+  where \lstinline!z! is not a variable and can be unified with the goal by
+  some substitution of the variables. The fully specialized assertion is a
+  valid backward rule. Restriction: If some of the premises (after the
+  substitution and with all functions expanded) are more complicated than the
+  goal (with all functions expanded) and the schematic rule has already been
+  used before in the proof, then the generated backward rule is not valid.
+
+\item If \lstinline!eval! is a valid evaluation of the goal then
+  \begin{lstlisting}
+      eval ==> goal
+  \end{lstlisting}
+  is a valid backward rule.
+\end{enumerate}
+
+
+
+
+\subsection{Evaluation}
+
+Universally quantified expressions, implications and conjunctions
+i.e. expressions of the following forms are never evaluated.
+\begin{lstlisting}
+    all(x,y,...) exp
+
+    a and b
+
+    a ==> b
+\end{lstlisting}
+
+Ways to evaluate an expression:
+\begin{enumerate}
+\item Expansion of the toplevel function. If the toplevel function is a
+  function term then do a toplevel expansion of the function term.
+
+\item If the toplevel function does not have a definition and the expression
+  is neither universally quantified nor an implication nor a conjunction then
+  the expression with all functions expanded recursively is a valid evaluation.
+
+\item Beta reduction of the toplevel term.
+
+\item If the expression has the subterms \lstinline!a1,a2,...! i.e. it has the
+  form \lstinline!f(a1,a2,...)! and there are the assertions
+  \begin{lstlisting}
+      a1 = b2
+      a2 = b2
+      ...
+  \end{lstlisting}
+  in the context where the right hand side of the equation is simpler than the
+  left hand side (after full function expansion), then
+  \lstinline!f(b1,b2,...)! is a valid evaluation of the expression.
+\end{enumerate}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "albatross"
+%%% End: 
