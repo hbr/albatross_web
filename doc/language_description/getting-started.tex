@@ -41,7 +41,7 @@ albatross directory. We initialize it by issuing the command
 from the command line. The albatross compiler keeps track of dependencies
 between modules and the init command creates a hidden subdirectory in the
 package directory where the compiler can store dependencies and some other
-information of compiled modules.
+information on compiled modules.
 
 Issuing the command
 \begin{lstlisting}
@@ -57,15 +57,15 @@ With the command
 \begin{lstlisting}
     alba compile
 \end{lstlisting}
-we compile the module successfully and a following request of the status shows
-that nothing has to be done on the package.
+we compile the module successfully and a following status request shows that
+nothing has to be done for the package.
 
 If we modify the file and request the status again we get the answer
 \begin{lstlisting}
     modified:   minimal.al
 \end{lstlisting}
-and in the case that more modules depend on this module the list of all
-files which need recompilation because of the modification.
+and in the case that more modules depend on this module we also get the list
+of all files which need recompilation because of the modification.
 
 Now let us look at the content of the source file. The first block of a source
 file is the usage block where all used modules are declared.
@@ -75,7 +75,7 @@ Our minimal program uses just the module \lstinline!boolean! of the library
 type \lstinline!BOOLEAN! which is declared in the module \lstinline!boolean!
 of the base library.
 
-You can hardly do anything without the data type \lstinline!BOOLEAN! in any
+It is difficult to do anything without the data type \lstinline!BOOLEAN! in any
 Albatross module. Therefore it is always used either explicitly or
 implicitly. The module \lstinline!boolean! of the base library is the only
 module which doesn't use other modules.
@@ -113,11 +113,11 @@ and adds it to the context.
 
 Note that implication is right associative.
 
-\subsection{Resoning with Implication}
+\subsection{Reasoning with Implication}
 
 Implication is the most important boolean operator for doing proofs. The
-assertion \lstinline!a ==> b! states that from \lstinline!a! we can immediatly
-conclude \lstinline!b!.
+assertion \lstinline!a ==> b! states that given \lstinline!a! we can
+immediately conclude \lstinline!b!.
 
 We can express the modus ponens law in Albatross as
 
@@ -214,8 +214,8 @@ generates the following detailed proof
 \end{lstlisting}
 
 All these steps are trivial applications of the modus ponens law. But it would
-be very ackward if the programmer had to enter all these steps. Better let the
-compiler generate these steps.
+be very awckward if the programmer had to enter all these steps. It's better
+to let the compiler generate them.
 
 \subsection{The Deduction Law}
 
@@ -238,9 +238,9 @@ the trivial assertion \lstinline!a ==> a!.
         end
 \end{lstlisting}
 
-The statement "from \lstinline!a! follows \lstinline!a!" is intuitively evident to us. But how do
-we prove it? The compiler uses the deduction law and creates the following
-detailed proof
+The statement "\lstinline!a! follows from \lstinline!a!" is intuitively
+evident to us. But how do we prove it? The compiler uses the deduction law and
+creates the following detailed proof
 
 \begin{lstlisting}
     all(a:BOOLEAN)
@@ -302,8 +302,8 @@ about conjunction
         end
 \end{lstlisting}
 
-For the the conjunction operator just the signature is given. From it we can
-just see that conjunction is a binary boolean operator. No definition is
+For the the conjunction operator only a signature is given. From it we only
+know that conjunction is a binary boolean operator. No definition is
 available.
 
 Instead of a definition the interface file gives us one introduction rule and
@@ -400,8 +400,8 @@ for disjunction:
         end
 \end{lstlisting}
 
-The operator \lstinline!or! is declared without definition. It has two introduction laws
-which should be quite obvious and one elimination law.
+The operator \lstinline!or! is declared without definition. It has two
+introduction laws which should be quite obvious and the elimination law.
 
 The eliminiation law allows us to prove assertions by case split. Let's assume
 that we have the assertion \lstinline!a or b! in the context and we want to

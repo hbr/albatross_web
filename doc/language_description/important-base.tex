@@ -50,7 +50,7 @@ i.e. which inherits from \lstinline!ANY!.
 
 The module declares the two functions \lstinline!=! and \lstinline!/=!. The
 function \lstinline!=! is a deferred function which has to be present in all
-descendants of the class \lstinline!ANY! either declared in the descendant
+descendants of the class \lstinline!ANY!, either declared in the descendant
 with a definition or redeclared as deferred. The function \lstinline!/=! has a
 definition.
 
@@ -176,13 +176,13 @@ the form
     -- beta reduces to
     exp_a   -- all variables 'x' in 'exp_x' replaced by 'a'
 \end{lstlisting}
-in forward and in backward direction.
+in both forwards and backwards directions.
 
 The function \lstinline!singleton! is the first non-operator function used in
 this tutorial. It has one argument. The most natural way to call this function
 is like \lstinline!singleton(a)!. This form is called the functional
 notation. However Albatross has an equivalent object oriented notation with a
-dot notation extracting the first argument and put it as the target object
+dot notation, extracting the first argument and placing it as the target object,
 before the dot. Therefore the expression \lstinline!a.singleton! is an
 equivalent function call.
 
@@ -191,7 +191,7 @@ In order to support a more mathematical notation the abbreviation
 expression of the form \lstinline!{a,b,...}! to
 \lstinline!a.singleton + b.singleton + ...!.
 
-The following functions demonstrate that function names or operators does not
+The following functions demonstrate that function names or operators do not
 need to be unique in Albatross. Only the function name (operator name)
 together with the signature has to be unique. Therefore \lstinline!-! can be
 used as a binary operator for set difference and as a unary operator for set

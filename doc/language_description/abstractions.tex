@@ -89,7 +89,7 @@ work hand in hand and that the proof engine can do many detailed steps which
 would be very tedious to do them by hand.
 
 
-The \lstinline!<! operator shall be transitive as well. However the proof
+The \lstinline!<! operator should be transitive as well. However the proof
 engine fails to prove the transitivity without help.
 %
 \begin{lstlisting}
@@ -124,7 +124,7 @@ Backward reasoning generates the following subgoals
 \end{lstlisting}
 
 I.e. the proof can succeed if the assumption of \lstinline!a = c! leads to
-falsity. In order to prove falsity the proof engine generates the subgoals
+falsehood. In order to prove falsehood the proof engine generates the subgoals
 \begin{lstlisting}
     ...
     b <= c
@@ -139,7 +139,7 @@ get \lstinline!c <= b! into the context and the proof succeeds. Term rewriting
 can be triggered by applying the Leibniz rule (see chapter on the module
 \lstinline!predicate!).
 
-The following proves successfully the transitivity of \lstinline!<!.
+The following successfully proves the transitivity of \lstinline!<!.
 
 \begin{lstlisting}
     all(a,b,c:PO)
@@ -158,13 +158,14 @@ The following proves successfully the transitivity of \lstinline!<!.
             a < c
         end
 \end{lstlisting}
-Note that the proof engine needs just a little hint on how to conclude falsity
-from the assumption \lstinline!a = c!. It is sufficient to provide this
-hint. The detailed steps which are a lot are filled in by the proof engine.
+Note that the proof engine needs just a little hint on how to conclude
+falsehood from the assumption \lstinline!a = c!. It is sufficient to provide
+this hint. The detailed steps, which are numerous, are filled in by the proof
+engine.
 
 In the base library we have already an example of a class which satisfies the
 requirements of a partial order. The subset relation defined in the module
-`predicate` is certainly reflexive, antisymmetric and transitive.
+\lstinline!predicate! is certainly reflexive, antisymmetric and transitive.
 
 We can prove this conjecture by
 \begin{lstlisting}
@@ -287,7 +288,7 @@ Note that we used the Leibniz rule to rewrite the assertion \lstinline!b <= b!
 to \lstinline!a <= b! which contradicts the assumption.
 
 We want to prove as well that \lstinline!not (a < b)!  leads to
-\lstinline!b <= a!. We use an indirect proof i.e. we assume that the
+\lstinline!b <= a!. We use a proof by contradiction i.e. we assume that the
 conclusion does not hold. From the last assertion we know that this leads to
 \lstinline!a < b!  which contradicts the assumption.
 
