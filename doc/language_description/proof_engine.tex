@@ -4,12 +4,12 @@
 \section{Rules of the Proof Engine}
 
 
-The proof engine is based on a view very simple rules and knows only of
+The proof engine is based on a few very simple rules and knows only of
 universal quantification, existential quantification and implication.
 
 \subsection{Modus Ponens and Deduction Law}
 
-The modus pones law says: Whenever the assertions
+The modus ponens law says: Whenever the assertions
 \begin{lstlisting}
     a
 
@@ -22,7 +22,7 @@ then we can conclude the validity of
     b
 \end{lstlisting}
 
-The modus ponens law allows the proof engine to draw conclusion by following
+The modus ponens law allows the proof engine to draw conclusions by following
 implications.
 
 The deduction law allows us to prove implications. It says: In order to prove
@@ -84,7 +84,7 @@ variables into the context and then proving the expression. If this is
 successful then the validity of the universally quantified assertions is
 concluded.
 
-Furthermore the proof engine knows that in can reorder the variables and
+Furthermore the proof engine knows that in it can reorder the variables and
 bubble up variables i.e. it considers the two following assertions equivalent
 (with proper renamings of variables to avoid name clashes).
 
@@ -146,7 +146,7 @@ can be partially specialized to
 \end{lstlisting}
 
 
-\subsection{Existencial Quantification}
+\subsection{Existential Quantification}
 
 The existentially quantified assertion
 %
@@ -291,7 +291,7 @@ the following algorithm:
   quantification and add the corresponding variables and split implications
   and add assumptions.
 
-\item Directyl prove the goal. In case of success the proof is done. In case
+\item Directly prove the goal. In case of success the proof is done. In case
   of failure continue.
 
 \item Prove the goal by backward reasoning.

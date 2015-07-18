@@ -3,3 +3,8 @@
 *.aux
 *.pdf
 *.out
+jquery*
+draft
+bin
+library
+tmp

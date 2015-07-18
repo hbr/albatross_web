@@ -267,7 +267,7 @@ conclude \lstinline!b < a!. In order to prove this conclusion we have to prove
 \lstinline!b <= a! and \lstinline!b /= a!. The first one is a consequence of
 the fact that pairs are always related by \lstinline!<=! and if one relation
 does not hold then the other must hold. The second one can be proved by
-leading the assumption \lstinline!b = a! to a contradiction.
+showing the assumption \lstinline!b = a! leads to a contradiction.
 
 \begin{lstlisting}
     all(a,b:LO)
@@ -305,7 +305,7 @@ conclusion does not hold. From the last assertion we know that this leads to
         end
 \end{lstlisting}
 
-In linear order two different elements have to be related in the strict order
+In a linear order two different elements have to be related in the strict order
 relation \lstinline!<!.
 
 \begin{lstlisting}

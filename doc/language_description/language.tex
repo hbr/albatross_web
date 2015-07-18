@@ -43,7 +43,7 @@ extension. I.e. the module name of the module having the source files
 \lstinline!boolean.al! and \lstinline!boolean.ali! is \lstinline!boolean!.
 
 Modules of the same package are used by name. Modules of other packages are
-used by its fully qualified name. E.g. a module with the usage declaration
+used by their fully qualified names. E.g. a module with the usage declaration
 \begin{lstlisting}
     use
         alba.base.boolean
@@ -74,8 +74,8 @@ then the Albatross compiler searches for libraries in all these paths.
 The paths on the command line override the paths of the environment variable.
 
 The locations of commonly used libraries should be given by the environment
-variable and location of libraries/packages just valid for a specific program
-should be given on the command line.
+variable and the location of libraries/packages used only for a specific
+program should be given on the command line.
 
 
 
@@ -312,8 +312,8 @@ clause i.e. it has one of the forms
 After the class has been declared with its potential formal generics, features
 and assertions can be introduced to the class.
 
-Having enough features and assertions it is be possible to add inheritance
-clauses to the class.
+Classes may add inheritance clauses if they also declare the appropriate
+features and assertions.
 
 A class declaration where the classname is unqualified always declares a class
 which belongs to the current module. The first declaration of a class within a
@@ -775,8 +775,8 @@ expansion
 There are two types of comments. The first one starts with the sequence
 \lstinline!--! followed by a blank and spans to the end of the line. The
 second one begins with the sequence \lstinline!{:! and ends with
-  \lstinline!:}! and spans arbitrarily long. The second comment type can be
-nested. Comments are completely ignored by the compiler.
+  \lstinline!:}! and spans an abitrary amount of text. The second comment type
+can be nested. Comments are completely ignored by the compiler.
 
 \newcommand {\semicol}{\lstinline!;!}
 
@@ -822,7 +822,7 @@ be terminated with a semicolon.
     free_operator: [+-/*<>=~|^]+
 \end{lstlisting}
 
-\noindent The folling identifiers are reserved words in Albatross:
+\noindent The following identifiers are reserved words in Albatross:
 \begin{lstlisting}
     all          and          as          assert
     case         check        class       create
