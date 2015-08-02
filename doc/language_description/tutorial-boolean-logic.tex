@@ -1,0 +1,375 @@
+\section{Boolean Logic}
+
+The Albatross base library has a module called \lstinline!boolean_logic! which
+provides to the user a lot of useful assertions for boolean expressions. In
+this chapter we try to proof some useful facts abount boolean logic without
+using this module.
+
+We just use the bare bone module \lstinline!boolean! which provides us with
+the following declarations in its interface file:
+
+\begin{lstlisting}
+    immutable class BOOLEAN end
+
+    false: BOOLEAN
+    true:  BOOLEAN
+    (==>) (a,b:BOOLEAN): BOOLEAN
+    (and) (a,b:BOOLEAN): BOOLEAN
+    (or)  (a,b:BOOLEAN): BOOLEAN
+    (not) (a:BOOLEAN):   BOOLEAN -> a ==> false
+    (=)   (a,b:BOOLEAN): BOOLEAN -> (a ==> b) and (b ==> a)
+
+    all(a,b,c:BOOLEAN)
+        ensure
+            true
+
+            a = a
+
+            -- negation
+            (not a ==> false) ==> a       -- indirect proof
+
+            -- conjunction
+            a and b ==> a                 -- and elimination
+            a and b ==> b
+            a ==> b ==> a and b           -- and introduction
+
+            -- disjunction
+            a ==> a or b                  -- or introduction
+            b ==> a or b
+
+            a or b
+            ==> (a ==> c)
+            ==> (b ==> c)
+            ==> c                         -- or elimination
+        end
+\end{lstlisting}
+
+We claim that these definitions and assertions are sufficient to prove all
+laws of boolean logic.
+
+All the following proofs are valid within a module with the header
+\begin{lstlisting}
+    -- file: boolean_playground.al
+
+    use alba.base.boolean end
+
+    ...
+\end{lstlisting}
+
+\subsection{Idempotence of Conjunction and Disjunction}
+
+Let us begin with the simple facts that \lstinline!a and a ==> a! and
+\lstinline!a or a ==> a! should be valid in boolean logic. The first one is
+proved immediately by the proof engine because it just applies the deduction
+rule to shift \lstinline!a and a! into the context and then uses the
+elimination rule to conclude \lstinline!a! which proves the goal. For the
+second one the proof engine gets stuck. It applies the deduction rule to shift
+\lstinline!a or a! into the context and then it partially specializes the
+elimination rule for \lstinline!or! to reach the state:
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            a or a
+        proof
+            all(c) (a ==> c) ==> (a ==> c) ==> c  -- (1)
+            ...  -- cannot continue
+        ensure
+            a
+        end
+\end{lstlisting}
+
+The proof engine has done all forward reasoning it can do. No backward
+reasoning is possible because (1) is not a valid backward rule. Why is (1) not
+a valid backward rule? A valid backward rule in Albatross has to satisfy the
+following criteria:
+
+\begin{enumerate}
+\item It is an implication chain.
+\item The final target of the implication chain contains all bound variables.
+\item The final target is not a single variable.
+\end{enumerate}
+
+The assertion (1) is an implication chain and the final target \lstinline!c!
+contains all bound variables (there is only one in this case). However the
+last condition is not satisfied. But the assertion (1) is still a valid
+forward rule. The proof engine needs just a little hint on how to specialize
+the first premise of the implication chain. The expression \lstinline!a ==> a!
+can be proved trivially (see last chapter) and does the needed
+specialization. The complete proof:
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            a or a
+        proof
+            a ==> a
+        ensure
+            a
+        end
+\end{lstlisting}
+
+This proof is a general pattern for exploiting disjunctions in the
+context. Whenever we have an expression of the form \lstinline!a or b! in the
+context and we want to prove a goal \lstinline!g! we have to prove the
+goal under the assumption \lstinline!a! and we have to prove the goal under
+the assumption \lstinline!b!.
+
+
+\subsection{Ex Falso Quodlibet}
+
+The latin expression {\em ex falso quodlibet} translates to {\em from a false
+  assumption everything can be concluded}. This is a general law of boolean
+logic and should be provable within Albatross. If we try to prove this law the
+proof engine gets stuck again.
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            false
+        proof
+            ...  -- cannot continue
+        ensure
+            a
+        end
+\end{lstlisting}
+
+The proof engine cannot conclude anything from \lstinline!false! because there
+is no implication which has \lstinline!false! as a first premise. No backward
+reasoning starting from the target is possible because the only potential
+assertion
+\begin{lstlisting}
+    all(a:BOOLEAN) (not a ==> false) ==> a
+\end{lstlisting}
+is not a valid backward rule (the final target is a single variable). We can
+use it as a forward rule if we can prove its premise
+\lstinline!not a ==> false! in the context. In order to prove this we can
+shift \lstinline!not a!  into the assumptions and prove \lstinline!false!. A
+prove of \lstinline!false!  succeeds in this context, because
+\lstinline!false! is already an assumption. The complete proof:
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            false
+        proof
+            not a ==> false
+        ensure
+            a
+        end
+\end{lstlisting}
+
+This proof demostrates a generic pattern to trigger the proof engine to prove
+something by contradiction. We can even shorten the proof a little bit by
+writing
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            false
+        proof
+            not not a
+        ensure
+            a
+        end
+\end{lstlisting}
+
+Why does this work? On trying to prove \lstinline!not not a! the proof engine
+unfolds the definition of \lstinline!not! to get the new goal
+\lstinline!not a ==> false! which it proves as already explained. As soon as
+it has proved \lstinline!not not a! it shifts it as proved into the context
+and does forward reasoning. Unfolding of function definitions is done in
+forward direction as well, therefore \lstinline!not a ==> false! is shifted
+into the context. Further forward reasoning leads to \lstinline!a! which
+proves the goal.
+
+Let's for the moment be pedantic and list all steps done by the proof engine
+to prove the {\em ex false quodlibet} law. In order to understand the backward
+reasoning steps read from \lstinline!not not a! upward. In oder to understand
+the forward reasoning steps read from \lstinline!not not a! downward.
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        require
+            false
+        proof
+            require
+                not a
+            ensure
+                false
+            end              -- deduction rule
+
+            not a ==> false  -- function expansion
+
+            not not a        -- entered by the user
+
+            not a ==> false  -- function expansion
+
+            (not a ==> false) ==> a  -- indirect proof rule
+            a                -- modus ponens
+        ensure
+            a
+        end
+\end{lstlisting}
+
+
+
+\subsection{De Morgan Laws}
+
+The De Morgan laws of logic express a certain connection between negation,
+conjunction and disjunction.
+
+\begin{lstlisting}
+    not (a or b)  = (not a and not b)   -- (1)
+
+    not (a and b) = (not a or not b)    -- (2)
+\end{lstlisting}
+
+Note the need of parentheses here because the boolean operators bind stronger
+than the relational operator \lstinline!=!. These laws are boolean
+equivalences. From the definition of \lstinline!=! we know immediately that
+for each equivalence we have to prove two implications.
+
+In Albatross we nearly never prove boolean equivalences directly. Instead we
+prove the two associated implications. This has two reasons:
+
+\begin{enumerate}
+\item Having the two implications the proof engine can prove the equivalence
+  easily because it justs has to expand the definition of equivalence and
+  connect the result to the two implications (by using the introduction rule
+  of \lstinline!and!).
+
+\item Implications are very useful for backward and forward reasoning. A
+  boolean equivalence is nearly useless for the proof engine.
+\end{enumerate}
+
+The same applies to conjunctions: Don't prove them directly; better prove the
+operands.
+
+If we try to prove the first one and type
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        require
+            not (a or b)
+        ensure
+            not a
+            not b
+        end
+\end{lstlisting}
+and start the Albatross compiler then the compiler succeeds without any
+complaint. Let's see the detailed steps of the proof engine to understand the
+success.
+
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        require
+            not (a or b)
+        proof
+            a or b ==> false      -- function expansion
+                                  -- forward reasoning stops here
+
+            require a
+            proof   a or b        -- needed premise for 'false'
+            ensure  false end     -- deduction law
+
+            a ==> false           -- function expansion
+
+            require b
+            proof   a or b        -- needed premise for 'false'
+            ensure  false end     -- deduction law
+
+            b ==> false           -- function expansion
+        ensure
+            not a
+            not b
+        end
+\end{lstlisting}
+To understand the detailed steps you have to read it downwards to
+\lstinline!a or b ==> false!. The rest you have to read from the goals
+upwards.
+
+The second implication of (1) immediately succeeds as well.
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        require
+            not a
+            not b
+        ensure
+            not (a or b)
+        end
+\end{lstlisting}
+Please try to understand the detailed steps before reading further.
+
+For completeness we give the proofs of the two implications needed for (2).
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        require
+            not (a and b)
+        proof
+            not not (not a  or  not b)
+        ensure
+            not a  or  not b
+        end
+\end{lstlisting}
+
+\begin{lstlisting}
+    all(a,b:BOOLEAN)
+        require
+            not a  or  not b
+        proof
+            not a  ==>  not (a and b)
+            not b  ==>  not (a and b)
+        ensure
+            not (a and b)
+        end
+\end{lstlisting}
+
+The first one triggers a proof by contradiction. The second one uses the
+elimination rule of \lstinline!or! to do the job.
+
+
+Now let us look at the famous {\em tertium non datur} or the law of the
+excluded middle.
+\begin{lstlisting}
+    a  or  not a
+\end{lstlisting}
+
+We can prove this by triggering a proof by contradiction.
+
+\begin{lstlisting}
+    all(a:BOOLEAN)
+        proof
+            not not (a  or  not a)
+        ensure
+            a  or  not a
+        end
+\end{lstlisting}
+
+It is a little bit tricky to understand why this proof succeeds without more
+hints. By expanding the function \lstinline!not! and applying the deduction
+rule we get \lstinline!not (a or not a)! into the context with the new goal
+\lstinline!false!. With the help of the De Morgan law (1) in forward direction
+we get \lstinline!not a! and \lstinline!not not a! into the context. Function
+expansion on the latter term yields \lstinline!not a ==> false!. The modus
+ponens law concludes from \lstinline!not a! and \lstinline!not a ==> false!
+the goal.
+
+Exercises:
+\begin{enumerate}
+\item Prove the associativity law of \lstinline!(a or b) or c! \lstinline!==>!
+  \lstinline!a or (b or c)!. Hint: Use the elimination law of disjunction more
+  than once. Then  make the proof compact, i.e. throw out all intermediate steps
+  which can be done by the proof engine automatically.
+\item Prove the law \lstinline!(not a ==> b) ==> a or b!. Hint: Use the
+  law of the excluded middle.
+\end{enumerate}
+
+%%% Local Variables:
+%%% mode: latex
+%%% case-fold-search: nil
+%%% TeX-master: "albatross"
+%%% End:
