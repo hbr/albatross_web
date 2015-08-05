@@ -6,6 +6,7 @@ js
 php
 ocaml
 
+*~
 *.log
 *.toc
 *.aux

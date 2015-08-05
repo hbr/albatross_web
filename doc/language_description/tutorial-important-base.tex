@@ -70,8 +70,8 @@ entitled to inherit from \lstinline!ANY! the effective function \lstinline!/=!
 and the effective assertion stating that irreflexivity implies falsehood.
 
 
-
 \subsection{The Module 'predicate'}
+\label{module-predicate}
 
 The concept of a predicate is very important in Albatross. A predicate is a
 total boolean valued function over a certain type. All objects which satisfy a
@@ -112,7 +112,7 @@ Albatross. Therefore the shorthand \lstinline!G?! has been introduced to be
 equivalent to \lstinline!PREDICATE[G]!.
 
 The expression \lstinline!p(x)! states that \lstinline!x! satisfies the
-predicate \lstinline!p!. The statement \lstinline!x in p! is equivalent.
+predicate \lstinline!p!. The expression \lstinline!x in p! is equivalent.
 
 The function \lstinline!<=! defines the subset relation. A predicate/set
 \lstinline!p! is a subset of \lstinline!q! if all elements of \lstinline!p!
@@ -153,6 +153,12 @@ ghost function. As a consequence all functions inherited from the class
     -- union and intersection of a collection of sets
     (+)  (pp:G??): ghost G?  -> {x: some(p) pp(p) and p(x)}
     (*)  (pp:G??): ghost G?  -> {x: all(p)  pp(p) ==> p(x)}
+
+    -- Leibniz rule
+    all(a,b:G, p:G?)
+        ensure
+            a = b  ==>   p(a) ==>  p(b)
+        end
 \end{lstlisting}
 
 The empty and the universal set over a type are declared as
@@ -197,39 +203,11 @@ together with the signature has to be unique. Therefore \lstinline!-! can be
 used as a binary operator for set difference and as a unary operator for set
 complement.
 
-The last block in the interface file of the module `predicate` lists all
-assertions which have been proved in the implementation file and are exported
-for public use. We list here just a few of them.
-
-\begin{lstlisting}
-    -- some assertions in the file 'predicate.ali'
-    all(a,b,c:G, p,q,r:G?)
-        ensure
-            a = b  ==>  p(a) ==> p(b)  -- Leibniz rule
-
-            a = b  ==> b = a
-
-            a = b  ==> b = c  ==> a = c
-
-            {a} /= 0
-
-            p + q  =  q + p
-            p + q + r  = p + (q * r)
-            
-            (some(x) p(x)) ==> p /= 0
-            p /= 0 ==> some(x) p(x)
-
-            p /= 0 ==> p + q /= 0
-            ...
-        end
-\end{lstlisting}
-
-Most of these assertions should be fairly evident. I'd like to draw your
-attention to the first one called {\em Leibniz rule}. The Leibniz rule
-expresses a concept which is very important in Albatross. If two objects are
-equal there is no possibility to distinguish them. The Albatross compiler
-enforces this rule by not allowing any definition of equality which is not
-strong enough to satisfy the Leibniz rule.
+The last declaration is the so called {\em Leibniz rule} of equality.  The
+Leibniz rule expresses a concept which is very important in Albatross. If two
+objects are equal there is no possibility to distinguish them. The Albatross
+compiler enforces this rule by not allowing any definition of equality which
+is not strong enough to satisfy the Leibniz rule.
 
 The Leibniz rule allows you to do rewritings. As soon as there is an equality
 of the form \lstinline!a = b! with specific \lstinline!a! and \lstinline!b! in
@@ -241,7 +219,7 @@ and adds
 \end{lstlisting}
 %
 to the context. How can you trigger rewritings using this rule? If you can
-prove the assertions \lstinline!exp_a! in which \lstinline!a! occurs as a
+prove the assertion \lstinline!exp_a! in which \lstinline!a! occurs as a
 subexpression you can replace this subexpression by a fresh variable
 \lstinline!x! to get the expression \lstinline!exp_x!. Now you can form the
 predicate \lstinline!{x: exp_x}! and the subexpression \lstinline!a!

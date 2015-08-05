@@ -13,10 +13,10 @@ directory of Albatross source files the compiler offers you the following
 basic commands:
 
 \begin{lstlisting}
-    alba init          -- initializes the directory
-    alba status        -- displays modules which need recompilation
-    alba compile       -- compiles all modules which require recompilation
-    alba help          -- get help about commands, options and arguments
+    alba init       -- initializes the directory
+    alba status     -- displays modules which need recompilation
+    alba compile    -- compiles all modules which require recompilation
+    alba help       -- get help about commands, options and arguments
 \end{lstlisting}
   
 I.e. the albatross compiler automatically keeps track of dependencies between
@@ -235,16 +235,16 @@ inherits from the class \lstinline!ANY!.
 The module \lstinline!any! has the purpose to define equality. Therefore it
 declares a deferred function named \lstinline!=! which compares two objects of
 the same type. Any descendant of \lstinline!ANY! has to define the function or
-redeclare it as deferred. Furhtermore it declares an assertion stating
+redeclare it as deferred. Furthermore it declares an assertion stating
 reflexivity of equality. Since the assertion is deferred any descendant of the
-class \lstinline!ANY!  has to either proof this statement or restate it as
+class \lstinline!ANY!  has to either prove this statement or restate it as
 deferred.
 
 Inequality \lstinline!/=! is defined in the module \lstinline!any! as an
 effective function. This function is inherited to any descendant.
 
-Furthermore the module \lstinline!any! states that it has proved the fact
-that \lstinline!a /= a ==>! \lstinline!false! is valid for any \lstinline!a!. Any
+Furthermore the module \lstinline!any! states that it has proved the fact that
+\lstinline!a /= a! \lstinline! ==> false! is valid for any \lstinline!a!. Any
 descendant of \lstinline!ANY! can take this fact for granted.
 
 Note that the class name \lstinline!BOOLEAN! is qualified with the module name
@@ -270,10 +270,11 @@ already uses the module \lstinline!boolean!  and no circularity is allowed.
 \begin{lstlisting}
     class_declaration:  [header_mark] class
                         class_name [class_generics]
+                        [creator_clause]
                         [inherit_clause]
                         end
 
-    header_mark:        immutable | deferred
+    header_mark:        immutable | deferred | case
 
     class_name:         {identifier '.' ...}* uidentifier
 
@@ -337,13 +338,38 @@ the same name is declared. The following example illustrates this.
 
 \begin{lstlisting}
     -- file a.ali
-    immutable class A end    -- declares a new class 'A' in module 'a'
+    immutable class A end   -- declares a new class 'A' in module 'a'
 
     -- file b.ali
-    immutable class A end    -- declares a new class 'A' in module 'b'
+    immutable class A end   -- declares a new class 'A' in module 'b'
 
-    immutable class a.A end  -- redeclares the class 'A' of the module 'a'
+    immutable class a.A end -- redeclares the class 'A' of the module 'a'
 \end{lstlisting}
+
+\section{Creators}
+
+\noindent Syntax:
+\begin{lstlisting}
+    creator_clause:    create  { creator [separator] ...}+
+
+    creator:           feature_name ['(' formals ')' ]
+
+\end{lstlisting}
+
+\noindent Definition: A base creator is a creator which has no argument
+depending on the surrounding case class. The other creators are recursive.
+
+\noindent Rules and validity:
+\begin{enumerate}
+\item There has to be at least one base creator.
+
+\item All base creators have to occur before the recursive creators.
+
+\item The creators can use only formal generics of the surrounding class.
+
+\item All formal generics have to appear in at least one of the constructors
+  in a nonrecursive argument.
+\end{enumerate}
 
 
 \section{Inheritance}
@@ -381,6 +407,7 @@ the same name is declared. The following example illustrates this.
     type:   simple_type
     |       predicate_type
     |       function_type
+    |       list_type
     |       '(' {type ',' ...}+ ')'
 
     simple_type:       class_name [actual_generics]
@@ -390,6 +417,8 @@ the same name is declared. The following example illustrates this.
     predicate_type:    type '?'
 
     function_type:     type '->' type
+
+    list_type:         '[' {type ',' ...}+ ']'
 
     -- '?' has higher precedence than '->'
 \end{lstlisting}
@@ -427,6 +456,10 @@ the same name is declared. The following example illustrates this.
     A -> B?      -- shorthand for FUNCTION[A,PREDICATE[B]]
 
     (A -> B)?    -- shorthand for PREDICATE[FUNCTION[A,B]]
+
+    [A]          -- shorthand for LIST[A]
+
+    [A,B->C]     -- shorthand for LIST[TUPLE[A,FUNCTION[B,C]]]
 \end{lstlisting}
 
 The basic library has the modules \lstinline!tuple!, \lstinline!predicate! and
@@ -668,8 +701,10 @@ unique.
     |           tuple
     |           function_literal
     |           predicate_literal
+    |           list
     |           listed_set
     |           quantified
+    |           typed
     |           '(' expression ')'
 
     simple_expression:
@@ -689,15 +724,23 @@ unique.
 
     function_literal:
                 '(' formals ')' [':' type] '->' expression
+    |           agent '(' formals ')' [':' type]
+                    [require_block]
+                    ensure_block
+                    end
                    
     predicate_literal:
                 '{' formals ':' expression '}'
 
     listed_set: '{' {expression ',' ...}+ '}'
 
+    list:       '[' {expression ',' ...}* ']'
+
     quantified: quantifier '(' formals ')' expression
 
     quantifier: all | some
+
+    typed:      expression ':' type
 
     binary_operator:
                 '+' | '-' | '*' | '/' | and | or | '==>' |
@@ -760,13 +803,18 @@ Tuples are parsed with right association.
 The quantifiers and the arrow \lstinline!->! are greedy i.e. they span to the
 right as far as possible. To limit the span parentheses can be used.
 
-A listed set is just a shorthand notation. The parser does the following
+Types are greedy as well, i.e. they span to the left as far as possible.
+
+A listed sets and lists are just a shorthand notations. The parser does the following
 expansion
 
 \begin{lstlisting}
      -- shorthand                   expansion
      {a,b,...}                      a.singleton + b.singleton + ...
+
+     [a,b,...,z]                    a ^ b ^ ... ^ z ^ []
 \end{lstlisting}
+
 
 
 \section{Lexical Conventions} \label{lexconv}
