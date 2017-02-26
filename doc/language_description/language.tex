@@ -192,7 +192,7 @@ which means their definition is not available to the user.
 
 The functions negation \lstinline!not! and boolean equivalence \lstinline!=!
 are declared with a definition. Since the definition is visible the compiler
-can expand any expression of the form \lstinline!not (x + y = y)! to
+can expand any expression of the form \lstinline!not (x + y = z)! to
 \lstinline!(x + y = z) ==> false!
 
 The assertion declaration states valid assertions about booleans. In the
@@ -228,8 +228,8 @@ The module declares the class \lstinline!ANY! as a deferred class which means
 that it can have deferred functions and/or assertions which have to be defined
 in other classes which inherit from the class \lstinline!ANY!.
 
-The module defines a formal generic \lstinline!G! which is a type
-variable. Any type can be substituted for \lstinline!G! as long as the type
+The module defines a formal generic \lstinline!G!. Formal generics are type
+variables. Any type can be substituted for \lstinline!G! as long as the type
 inherits from the class \lstinline!ANY!.
 
 The module \lstinline!any! has the purpose to define equality. Therefore it
