@@ -1,0 +1,12 @@
+#! /bin/bash
+
+
+
+destination_directory="/home/groups/a/al/albatross-lang/htdocs"
+directory="$HOME/myprogs/albatross/web/"
+
+
+rsync -avz --delete --rsh="ssh -l helmut_brandl,albatross-lang"   \
+      --exclude='.git*'                              \
+    $directory \                                     \
+    helmut_brandl,albatross-lang@web.sourceforge.net:$destination_directory
